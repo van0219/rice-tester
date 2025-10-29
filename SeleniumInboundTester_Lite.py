@@ -463,30 +463,185 @@ class SeleniumInboundTester:
             self.show_popup("Analytics Error", f"Failed to load achievements: {str(e)}", "error")
     
     def show_updates(self):
-        """Show updates dialog"""
+        """Show update confirmation dialog first"""
+        # Show confirmation dialog first
+        confirm_dialog = tk.Toplevel(self.root)
+        confirm_dialog.title("🔄 Update Confirmation")
+        center_dialog(confirm_dialog, 500, 400)
+        confirm_dialog.configure(bg='#ffffff')
+        confirm_dialog.resizable(False, False)
+        confirm_dialog.transient(self.root)
+        confirm_dialog.grab_set()
+        
         try:
-            import sys
-            import os
-            temp_path = os.path.join(os.path.dirname(__file__), 'Temp')
-            if temp_path not in sys.path:
-                sys.path.insert(0, temp_path)
+            confirm_dialog.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Header
+        header_frame = tk.Frame(confirm_dialog, bg='#3b82f6', height=60)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text="🔄 Check for Updates", 
+                font=('Segoe UI', 16, 'bold'), bg='#3b82f6', fg='#ffffff').pack(expand=True)
+        
+        # Content
+        content_frame = tk.Frame(confirm_dialog, bg='#ffffff', padx=25, pady=25)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Warning message
+        tk.Label(content_frame, text="⚠️ Update Process Information", 
+                font=('Segoe UI', 14, 'bold'), bg='#ffffff', fg='#f59e0b').pack(anchor="w", pady=(0, 15))
+        
+        info_text = """This will check for RICE Tester updates from GitHub and may:
+
+• Download and install new versions automatically
+• Replace current files with updated versions
+• Restart the application to apply changes
+• Backup current version before updating
+
+⚠️ Make sure to save any unsaved work before proceeding.
+
+Do you want to proceed with the update check?"""
+        
+        tk.Label(content_frame, text=info_text, font=('Segoe UI', 10), 
+                bg='#ffffff', fg='#374151', justify="left", wraplength=450).pack(anchor="w", pady=(0, 20))
+        
+        # Buttons
+        btn_frame = tk.Frame(content_frame, bg='#ffffff')
+        btn_frame.pack(fill="x")
+        
+        def proceed_with_update():
+            confirm_dialog.destroy()
+            self._show_update_loading()
+        
+        tk.Button(btn_frame, text="✅ Yes, Check for Updates", 
+                 font=('Segoe UI', 11, 'bold'), bg='#10b981', fg='#ffffff', 
+                 relief='flat', padx=20, pady=10, cursor='hand2', bd=0,
+                 command=proceed_with_update).pack(side="left", padx=(0, 10))
+        
+        tk.Button(btn_frame, text="❌ Cancel", 
+                 font=('Segoe UI', 11, 'bold'), bg='#6b7280', fg='#ffffff', 
+                 relief='flat', padx=20, pady=10, cursor='hand2', bd=0,
+                 command=confirm_dialog.destroy).pack(side="left")
+    
+    def _show_update_loading(self):
+        """Show loading screen after user confirms"""
+        # Create exciting loading dialog
+        loading_dialog = tk.Toplevel(self.root)
+        loading_dialog.title("🚀 Checking for Updates")
+        center_dialog(loading_dialog, 450, 300)
+        loading_dialog.configure(bg='#ffffff')
+        loading_dialog.resizable(False, False)
+        loading_dialog.transient(self.root)
+        loading_dialog.grab_set()
+        
+        try:
+            loading_dialog.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Animated header
+        header_frame = tk.Frame(loading_dialog, bg='#3b82f6', height=80)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        title_label = tk.Label(header_frame, text="🚀 Checking for Updates", 
+                              font=('Segoe UI', 16, 'bold'), bg='#3b82f6', fg='#ffffff')
+        title_label.pack(expand=True)
+        
+        # Content with progress
+        content_frame = tk.Frame(loading_dialog, bg='#ffffff', padx=30, pady=30)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Progress steps
+        steps = [
+            "🔍 Connecting to GitHub...",
+            "📊 Analyzing repository...",
+            "🎆 Checking for awesome updates...",
+            "✨ Preparing results..."
+        ]
+        
+        self.current_step = 0
+        self.step_label = tk.Label(content_frame, text=steps[0], 
+                                  font=('Segoe UI', 12), bg='#ffffff', fg='#1e40af')
+        self.step_label.pack(pady=(0, 20))
+        
+        # Animated progress bar
+        self.progress_var = tk.DoubleVar()
+        progress_bar = ttk.Progressbar(content_frame, variable=self.progress_var, 
+                                     maximum=100, length=350, mode='determinate')
+        progress_bar.pack(pady=(0, 15))
+        
+        # Progress percentage
+        self.progress_label = tk.Label(content_frame, text="0%", 
+                                      font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#6b7280')
+        self.progress_label.pack()
+        
+        # Fun loading messages
+        fun_messages = [
+            "🎉 Getting ready for something awesome!",
+            "🚀 Launching update rockets...",
+            "✨ Sprinkling some magic dust...",
+            "🎆 Almost there! Preparing surprises..."
+        ]
+        
+        self.fun_label = tk.Label(content_frame, text=fun_messages[0], 
+                                 font=('Segoe UI', 9), bg='#ffffff', fg='#8b5cf6')
+        self.fun_label.pack(pady=(10, 0))
+        
+        # Animate the loading process
+        def animate_loading():
+            for i in range(4):
+                self.step_label.config(text=steps[i])
+                self.fun_label.config(text=fun_messages[i])
+                
+                # Animate progress for this step
+                start_progress = i * 25
+                end_progress = (i + 1) * 25
+                
+                for progress in range(start_progress, end_progress + 1, 2):
+                    self.progress_var.set(progress)
+                    self.progress_label.config(text=f"{progress}%")
+                    loading_dialog.update()
+                    
+                    import time
+                    time.sleep(0.05)  # Smooth animation
             
-            from auto_updater import RiceAutoUpdater
-            updater = RiceAutoUpdater(current_version="1.0.0", github_repo="rice-tester")
-            updater.check_for_updates(show_ui=True)
-        except Exception as e:
-            self.show_popup("Update Check", f"Auto-updater error: {str(e)}\n\nPlease set up GitHub integration first.", "warning")
+            # Complete loading
+            loading_dialog.destroy()
+            
+            # Now show the actual updater
+            try:
+                import sys
+                import os
+                temp_path = os.path.join(os.path.dirname(__file__), 'Temp')
+                if temp_path not in sys.path:
+                    sys.path.insert(0, temp_path)
+                
+                from auto_updater import RiceAutoUpdater
+                updater = RiceAutoUpdater()
+                updater.check_for_updates(show_ui=True)
+            except Exception as e:
+                self.show_popup("Update Check", f"Auto-updater error: {str(e)}\n\nPlease set up GitHub integration first.", "warning")
+        
+        # Start animation in background
+        import threading
+        threading.Thread(target=animate_loading, daemon=True).start()
     
     def show_tools(self):
         """Show tools menu with responsive sizing"""
         tools_popup = tk.Toplevel(self.root)
         tools_popup.title("⚙️ Enterprise Tools")
         
-        # Responsive dialog size - reduced by 0.5 inch (48 pixels)
-        dialog_width = int(400 * getattr(self, 'scale_factor', 1.0))
-        dialog_height = int(300 * getattr(self, 'scale_factor', 1.0))
+        # Responsive dialog size - expanded for Phase 3 tools + 2 inches
+        dialog_width = int(500 * getattr(self, 'scale_factor', 1.0))
+        dialog_height = int(792 * getattr(self, 'scale_factor', 1.0))  # 600 + 192 pixels (2 inches)
         center_dialog(tools_popup, dialog_width, dialog_height)
         tools_popup.configure(bg='#ffffff')
+        tools_popup.resizable(False, False)
+        tools_popup.maxsize(dialog_width, dialog_height)
         
         try:
             tools_popup.iconbitmap("infor_logo.ico")
@@ -495,13 +650,13 @@ class SeleniumInboundTester:
         
         # Header with responsive sizing
         header_height = int(60 * getattr(self, 'scale_factor', 1.0))
-        header_frame = tk.Frame(tools_popup, bg='#f59e0b', height=header_height)
+        header_frame = tk.Frame(tools_popup, bg='#000000', height=header_height)
         header_frame.pack(fill="x")
         header_frame.pack_propagate(False)
         
         header_font = getattr(self, 'fonts', {}).get('header', ('Segoe UI', 14, 'bold'))
         tk.Label(header_frame, text="Enterprise Tools", font=header_font,
-                bg='#f59e0b', fg='#ffffff').pack(expand=True)
+                bg='#000000', fg='#ffffff').pack(expand=True)
         
         # Content with responsive padding
         content_padding = self.padding.get('medium', 20)
@@ -522,11 +677,41 @@ class SeleniumInboundTester:
                  bg='#6f42c1', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
                  cursor='hand2', bd=0, command=self.show_github_integration).pack(fill="x", pady=button_spacing)
         
+        # Phase 2 Enhancement Tools
+        tk.Button(content_frame, text="🚀 Smart Execution", font=button_font,
+                 bg='#3b82f6', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
+                 cursor='hand2', bd=0, command=self.show_smart_execution).pack(fill="x", pady=button_spacing)
+        
+        tk.Button(content_frame, text="📊 Advanced Reporting", font=button_font,
+                 bg='#8b5cf6', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
+                 cursor='hand2', bd=0, command=self.show_advanced_reporting).pack(fill="x", pady=button_spacing)
+        
+        tk.Button(content_frame, text="⚙️ Performance Monitor", font=button_font,
+                 bg='#f59e0b', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
+                 cursor='hand2', bd=0, command=self.show_performance_monitor).pack(fill="x", pady=button_spacing)
+        
+        tk.Button(content_frame, text="👥 Team Collaboration", font=button_font,
+                 bg='#10b981', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
+                 cursor='hand2', bd=0, command=self.show_team_collaboration).pack(fill="x", pady=button_spacing)
+        
+        # Phase 3 Enhancement Tools
+        tk.Button(content_frame, text="🤖 Smart Test Generator", font=button_font,
+                 bg='#ec4899', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
+                 cursor='hand2', bd=0, command=self.show_smart_test_generator).pack(fill="x", pady=button_spacing)
+        
+        tk.Button(content_frame, text="🎨 Visual Designer", font=button_font,
+                 bg='#06b6d4', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
+                 cursor='hand2', bd=0, command=self.show_visual_designer).pack(fill="x", pady=button_spacing)
+        
+        tk.Button(content_frame, text="🏢 Enterprise Dashboard", font=button_font,
+                 bg='#7c3aed', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
+                 cursor='hand2', bd=0, command=self.show_enterprise_dashboard).pack(fill="x", pady=button_spacing)
+        
         close_font = getattr(self, 'fonts', {}).get('button', ('Segoe UI', 10, 'bold'))
         close_pady = int(8 * getattr(self, 'scale_factor', 1.0))
         tk.Button(content_frame, text="Close", font=close_font,
                  bg='#6b7280', fg='#ffffff', relief='flat', padx=button_padx, pady=close_pady,
-                 cursor='hand2', bd=0, command=tools_popup.destroy).pack(pady=(self.padding.get('medium', 20), 0))
+                 cursor='hand2', bd=0, command=tools_popup.destroy).pack(pady=(self.padding.get('tiny', 10), 0))
     
     def run_performance_optimizer(self):
         """Run performance optimization tools"""
@@ -561,6 +746,83 @@ class SeleniumInboundTester:
             self.show_popup("Feature Unavailable", "GitHub Integration module not available. Please update RICE Tester.", "warning")
         except Exception as e:
             self.show_popup("GitHub Integration", f"GitHub CI/CD integration coming soon!\n\nFeatures:\n• Automated testing pipeline\n• Professional releases\n• Team distribution\n• Performance monitoring", "warning")
+    
+    def show_smart_execution(self):
+        """Show smart execution dialog"""
+        try:
+            from Temp.smart_execution import SmartExecutionManager
+            smart_manager = SmartExecutionManager(self.db_path, self.selenium_manager)
+            smart_manager.show_smart_execution_dialog(self.root)
+        except ImportError as e:
+            self.show_popup("Import Error", f"Smart execution module not found: {e}", "error")
+        except Exception as e:
+            self.show_popup("Error", f"Failed to open smart execution: {e}", "error")
+    
+    def show_advanced_reporting(self):
+        """Show advanced reporting dialog"""
+        try:
+            from Temp.advanced_reporting import AdvancedReportingManager
+            reporting_manager = AdvancedReportingManager(self.db_manager.db_path)
+            reporting_manager.show_advanced_reporting_dialog(self.root)
+        except ImportError as e:
+            self.show_popup("Import Error", f"Advanced reporting module not found: {e}", "error")
+        except Exception as e:
+            self.show_popup("Error", f"Failed to open advanced reporting: {e}", "error")
+    
+    def show_performance_monitor(self):
+        """Show performance monitor"""
+        try:
+            from Temp.performance_monitor import PerformanceMonitor
+            perf_monitor = PerformanceMonitor(self.db_manager.db_path)
+            perf_monitor.show_performance_monitor(self.root)
+        except ImportError as e:
+            self.show_popup("Import Error", f"Performance monitor module not found: {e}", "error")
+        except Exception as e:
+            self.show_popup("Error", f"Failed to open performance monitor: {e}", "error")
+    
+    def show_team_collaboration(self):
+        """Show team collaboration dialog"""
+        try:
+            from Temp.team_collaboration import TeamCollaborationManager
+            collab_manager = TeamCollaborationManager(self.db_manager.db_path)
+            collab_manager.show_team_collaboration_dialog(self.root)
+        except ImportError as e:
+            self.show_popup("Import Error", f"Team collaboration module not found: {e}", "error")
+        except Exception as e:
+            self.show_popup("Error", f"Failed to open team collaboration: {e}", "error")
+    
+    def show_smart_test_generator(self):
+        """Show smart test generator dialog"""
+        try:
+            from Temp.ai_test_generator import AITestGenerator
+            smart_generator = AITestGenerator(self.db_manager.db_path, self.selenium_manager)
+            smart_generator.show_smart_generator_dialog(self.root)
+        except ImportError as e:
+            self.show_popup("Import Error", f"Smart test generator module not found: {e}", "error")
+        except Exception as e:
+            self.show_popup("Error", f"Failed to open smart test generator: {e}", "error")
+    
+    def show_visual_designer(self):
+        """Show visual test designer dialog"""
+        try:
+            from Temp.visual_test_designer import VisualTestDesigner
+            visual_designer = VisualTestDesigner(self.db_manager.db_path)
+            visual_designer.show_visual_designer_dialog(self.root)
+        except ImportError as e:
+            self.show_popup("Import Error", f"Visual test designer module not found: {e}", "error")
+        except Exception as e:
+            self.show_popup("Error", f"Failed to open visual test designer: {e}", "error")
+    
+    def show_enterprise_dashboard(self):
+        """Show enterprise dashboard"""
+        try:
+            from Temp.enterprise_dashboard import EnterpriseDashboard
+            dashboard = EnterpriseDashboard(self.db_manager.db_path, self.user)
+            dashboard.show_enterprise_dashboard(self.root)
+        except ImportError as e:
+            self.show_popup("Import Error", f"Enterprise dashboard module not found: {e}", "error")
+        except Exception as e:
+            self.show_popup("Error", f"Failed to open enterprise dashboard: {e}", "error")
 
 # Security: This module can only be launched through RICE_Tester.py with proper authentication
 if __name__ == "__main__":
