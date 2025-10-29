@@ -84,19 +84,29 @@ class RiceDialogs:
             sftp_combo.set(profile_data[5])
         sftp_combo.grid(row=5, column=1, sticky="ew", padx=10, pady=5)
         
+        # Tenant
+        tk.Label(frame, text="Tenant:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').grid(row=6, column=0, sticky="w", pady=5)
+        tenant_entry = tk.Entry(frame, width=30, font=('Segoe UI', 10))
+        if len(profile_data) > 7 and profile_data[7]:  # tenant is index 7
+            tenant_entry.insert(0, profile_data[7])
+        else:
+            tenant_entry.insert(0, "TAMICS10_AX1")  # Default value
+        tenant_entry.grid(row=6, column=1, sticky="ew", padx=10, pady=5)
+        
         frame.grid_columnconfigure(1, weight=1)
         
         btn_frame = tk.Frame(frame, bg='#ffffff')
-        btn_frame.grid(row=6, column=0, columnspan=2, pady=20)
+        btn_frame.grid(row=7, column=0, columnspan=2, pady=20)
         
         def save_changes():
             new_rice_id = rice_id_entry.get().strip()
             new_name = name_entry.get().strip()
             new_client_name = client_entry.get().strip()
             new_type = type_var.get().strip()
+            new_tenant = tenant_entry.get().strip()
             
-            if not all([new_rice_id, new_name, new_client_name, new_type]):
-                self.show_popup("Error", "Please fill in required fields (RICE ID, Name, Project/Client, Type)", "error")
+            if not all([new_rice_id, new_name, new_client_name, new_type, new_tenant]):
+                self.show_popup("Error", "Please fill in required fields (RICE ID, Name, Project/Client, Type, Tenant)", "error")
                 return
             
             try:
@@ -104,8 +114,8 @@ class RiceDialogs:
                 sftp_profile_name = sftp_var.get().strip() or None
                 
                 cursor = self.db_manager.conn.cursor()
-                cursor.execute("UPDATE rice_profiles SET rice_id = ?, name = ?, type = ?, client_name = ?, channel_name = ?, sftp_profile_name = ? WHERE id = ?", 
-                             (new_rice_id, new_name, new_type, new_client_name, channel_name, sftp_profile_name, profile_id))
+                cursor.execute("UPDATE rice_profiles SET rice_id = ?, name = ?, type = ?, client_name = ?, channel_name = ?, sftp_profile_name = ?, tenant = ? WHERE id = ?", 
+                             (new_rice_id, new_name, new_type, new_client_name, channel_name, sftp_profile_name, new_tenant, profile_id))
                 self.db_manager.conn.commit()
                 popup.destroy()
                 # Auto-refresh RICE profiles table
