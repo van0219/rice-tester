@@ -113,7 +113,12 @@ class RiceAutoUpdater:
         """Show update check dialog"""
         dialog = tk.Toplevel()
         dialog.title("🔄 RICE Tester Updates")
-        center_dialog(dialog, 500, 472)
+        
+        # Calculate responsive height (60% of screen height, min 472px, max 800px)
+        screen_height = dialog.winfo_screenheight()
+        responsive_height = max(472, min(800, int(screen_height * 0.6)))
+        
+        center_dialog(dialog, 500, responsive_height)
         dialog.configure(bg='#ffffff')
         dialog.resizable(False, False)
         
