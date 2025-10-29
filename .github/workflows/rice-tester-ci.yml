@@ -73,7 +73,7 @@ jobs:
         echo "✅ Dependencies installed correctly" >> test_report.txt
         
     - name: 📤 Upload Test Results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results
         path: test_report.txt
@@ -176,13 +176,13 @@ jobs:
         echo "✅ All dependencies included" >> distribution_report.txt
         
     - name: 📤 Upload Distribution
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: rice-tester-distribution
         path: ${{ env.DISTRIBUTION_NAME }}
         
     - name: 📤 Upload Distribution Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: distribution-report
         path: distribution_report.txt
@@ -196,17 +196,17 @@ jobs:
     
     steps:
     - name: 📥 Download Distribution
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: rice-tester-distribution
         
     - name: 📥 Download Reports
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: test-results
         
     - name: 📥 Download Distribution Report
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: distribution-report
         
@@ -289,7 +289,7 @@ jobs:
         echo "✅ Performance check passed" >> performance_report.txt
         
     - name: 📤 Upload Performance Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: performance-report
         path: performance_report.txt
