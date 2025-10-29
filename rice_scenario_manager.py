@@ -470,9 +470,21 @@ class ScenarioManager:
         # Load first page
         load_steps_page()
         
+        # Action buttons
+        action_frame = tk.Frame(frame, bg='#ffffff')
+        action_frame.pack(fill="x", pady=(10, 0))
+        
+        # Generate documentation button
+        try:
+            from auto_documentation import add_documentation_button_to_scenario
+            doc_btn = add_documentation_button_to_scenario(action_frame, scenario_id, current_profile, self.db_manager, self.show_popup)
+            doc_btn.pack(side="left", padx=(0, 10))
+        except ImportError:
+            pass
+        
         # Close button
-        tk.Button(frame, text="Close", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=20, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack()
+        tk.Button(action_frame, text="Close", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
+                 relief='flat', padx=20, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack(side="left")
     
     def _add_tooltip(self, widget, text):
         """Add hover tooltip to widget for long text content"""
