@@ -547,15 +547,27 @@ class GitHubIntegrationManager:
                     'Accept': 'application/vnd.github.v3+json'
                 }
                 
+                url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/.github/workflows/rice-tester-ci.yml'
+                
+                # Check if workflow file already exists
+                check_response = requests.get(url, headers=headers, timeout=10)
+                
                 # Upload workflow file
                 content_b64 = base64.b64encode(workflow_content.encode('utf-8')).decode('utf-8')
                 
                 data = {
-                    'message': 'Add CI/CD pipeline for RICE Tester',
+                    'message': 'Update CI/CD pipeline for RICE Tester' if check_response.status_code == 200 else 'Add CI/CD pipeline for RICE Tester',
                     'content': content_b64
                 }
                 
-                url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/.github/workflows/rice-tester-ci.yml'
+                # If file exists, include SHA for update
+                if check_response.status_code == 200:
+                    existing_data = check_response.json()
+                    data['sha'] = existing_data['sha']
+                    self._add_progress("🔄 Updating existing CI/CD workflow...")
+                else:
+                    self._add_progress("📝 Creating new CI/CD workflow...")
+                
                 response = requests.put(url, headers=headers, json=data, timeout=30)
                 
                 loading.destroy()
