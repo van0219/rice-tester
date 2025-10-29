@@ -391,8 +391,8 @@ class GitHubIntegrationManager:
         # Set repo name if check passed
         self.repo_name = repo_name
         
-        # Show loading dialog
-        loading = self._show_loading_dialog("📦 Uploading Code", "Uploading 35+ RICE Tester files to GitHub...")
+        # Show uploading dialog with progress tracking
+        loading = self._show_uploading_dialog("📦 Uploading Code", "Preparing to upload RICE Tester files...")
         
         def upload_code():
             self._add_progress("Uploading RICE Tester code...")
@@ -459,8 +459,12 @@ class GitHubIntegrationManager:
             }
             
             uploaded_count = 0
+            total_files = len(files_to_upload)
             
-            for filename in files_to_upload:
+            # Update loading dialog with file count
+            self._update_uploading_dialog(loading, f"Uploading {total_files} RICE Tester files to GitHub...", 0, total_files)
+            
+            for i, filename in enumerate(files_to_upload):
                 file_path = os.path.join(rice_dir, filename)
                 
                 # Check if file exists, if not try Temp folder
@@ -502,6 +506,8 @@ class GitHubIntegrationManager:
                                 if response.status_code in [200, 201]:
                                     uploaded_count += 1
                                     self._add_progress(f"✅ Uploaded {filename}")
+                                    # Update progress in loading dialog
+                                    self._update_uploading_dialog(loading, f"Uploading {total_files} RICE Tester files to GitHub...", uploaded_count, total_files)
                                     break
                                 elif response.status_code == 409:  # Conflict
                                     self._add_progress(f"⚠️ Conflict uploading {filename}, retrying...")
@@ -534,8 +540,14 @@ class GitHubIntegrationManager:
                 else:
                     self._add_progress(f"⚠️ File not found: {filename}")
             
+            # Final progress update before closing
+            self._update_uploading_dialog(loading, "Upload completed!", uploaded_count, total_files)
+            
+            # Small delay to show completion
+            import time
+            time.sleep(1)
+            
             loading.destroy()
-            total_files = len(files_to_upload)
             self._add_progress(f"📁 Upload complete: {uploaded_count}/{total_files} files uploaded")
             
             if uploaded_count == total_files:
@@ -780,6 +792,75 @@ class GitHubIntegrationManager:
         
         loading.update()
         return loading
+    
+    def _show_uploading_dialog(self, title, message):
+        """Show uploading dialog with progress tracking"""
+        loading = tk.Toplevel()
+        loading.title(title)
+        loading.geometry("450x250")
+        loading.configure(bg='#ffffff')
+        loading.resizable(False, False)
+        loading.transient()
+        loading.grab_set()
+        
+        # Center the dialog
+        loading.update_idletasks()
+        x = (loading.winfo_screenwidth() // 2) - (450 // 2)
+        y = (loading.winfo_screenheight() // 2) - (250 // 2)
+        loading.geometry(f"450x250+{x}+{y}")
+        
+        try:
+            loading.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Header
+        header_frame = tk.Frame(loading, bg='#3b82f6', height=60)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text=title, font=('Segoe UI', 14, 'bold'), 
+                bg='#3b82f6', fg='#ffffff').pack(expand=True)
+        
+        # Content
+        content_frame = tk.Frame(loading, bg='#ffffff', padx=20, pady=20)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Message label (will be updated)
+        loading.message_label = tk.Label(content_frame, text=message, font=('Segoe UI', 11), 
+                                        bg='#ffffff', fg='#374151')
+        loading.message_label.pack(pady=(0, 15))
+        
+        # Progress bar (determinate for file upload)
+        loading.progress_bar = ttk.Progressbar(content_frame, mode='determinate', length=350)
+        loading.progress_bar.pack(pady=(0, 10))
+        
+        # Progress text
+        loading.progress_label = tk.Label(content_frame, text="Preparing...", font=('Segoe UI', 9), 
+                                         bg='#ffffff', fg='#6b7280')
+        loading.progress_label.pack()
+        
+        loading.update()
+        return loading
+    
+    def _update_uploading_dialog(self, loading, message, current, total):
+        """Update uploading dialog with current progress"""
+        if loading and loading.winfo_exists():
+            try:
+                # Update message
+                loading.message_label.config(text=message)
+                
+                # Update progress bar
+                if total > 0:
+                    progress_percent = (current / total) * 100
+                    loading.progress_bar.config(value=progress_percent)
+                    
+                    # Update progress text
+                    loading.progress_label.config(text=f"Uploaded {current}/{total} files ({progress_percent:.0f}%)")
+                
+                loading.update()
+            except:
+                pass  # Dialog might be destroyed
     
     def _save_updater_config(self):
         """Save updater configuration for Updates button"""
