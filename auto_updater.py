@@ -22,7 +22,7 @@ class RiceAutoUpdater:
     def __init__(self, current_version="1.0.0", github_repo="rice-tester"):
         self.current_version = current_version
         self.github_repo = github_repo
-        self.github_username = "vansilleza"  # Will be configurable
+        self.github_username = "van0219"  # Will be configurable
         self.update_check_interval = 24  # hours
         
         # Load configuration
@@ -36,7 +36,7 @@ class RiceAutoUpdater:
                 with open(config_path, 'r') as f:
                     config = json.load(f)
                 
-                self.github_username = config.get('github_username', 'vansilleza')
+                self.github_username = config.get('github_username', 'van0219')
                 self.github_repo = config.get('github_repo', 'rice-tester')
                 self.current_version = config.get('current_version', '1.0.0')
         except Exception as e:
@@ -57,6 +57,31 @@ class RiceAutoUpdater:
                 json.dump(config, f, indent=2)
         except Exception as e:
             print(f"Failed to save updater config: {e}")
+    
+    def _get_auth_headers(self):
+        """Get authentication headers for GitHub API"""
+        try:
+            # Load GitHub token from config
+            config_path = os.path.join(os.path.dirname(__file__), 'github_config.json')
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                
+                encoded_token = config.get('github_token')
+                if encoded_token:
+                    import base64
+                    try:
+                        token = base64.b64decode(encoded_token.encode()).decode()
+                        return {
+                            'Authorization': f'token {token}',
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    except Exception as decode_error:
+                        print(f"Token decode error: {decode_error}")
+        except Exception as e:
+            print(f"Failed to load GitHub token: {e}")
+        
+        return {}  # Return empty headers if no token available
     
     def should_check_for_updates(self):
         """Check if it's time to check for updates"""
@@ -88,7 +113,7 @@ class RiceAutoUpdater:
         """Show update check dialog"""
         dialog = tk.Toplevel()
         dialog.title("🔄 RICE Tester Updates")
-        center_dialog(dialog, 500, 400)
+        center_dialog(dialog, 500, 472)
         dialog.configure(bg='#ffffff')
         dialog.resizable(False, False)
         
@@ -161,8 +186,11 @@ class RiceAutoUpdater:
             self._update_status("Connecting to GitHub...")
             self.progress_var.set(25)
             
+            # Load GitHub token for private repository access
+            headers = self._get_auth_headers()
+            
             url = f"https://api.github.com/repos/{self.github_username}/{self.github_repo}/releases/latest"
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, headers=headers, timeout=10)
             
             self.progress_var.set(50)
             
@@ -182,6 +210,10 @@ class RiceAutoUpdater:
                     self.progress_var.set(100)
                     self._update_status("✅ You have the latest version!")
                     self._show_up_to_date()
+            elif response.status_code == 404:
+                self.progress_var.set(100)
+                self._update_status("📦 Team Distribution Version")
+                self._show_check_failed()
             else:
                 self.progress_var.set(100)
                 self._update_status("❌ Failed to check for updates")
@@ -266,15 +298,15 @@ class RiceAutoUpdater:
         for widget in self.status_frame.winfo_children():
             widget.destroy()
         
-        # Error info
-        error_frame = tk.Frame(self.status_frame, bg='#fee2e2', relief='solid', bd=1, padx=15, pady=10)
-        error_frame.pack(fill="x")
+        # Info frame for team distribution
+        info_frame = tk.Frame(self.status_frame, bg='#fef3c7', relief='solid', bd=1, padx=15, pady=10)
+        info_frame.pack(fill="x")
         
-        tk.Label(error_frame, text="❌ Update Check Failed", font=('Segoe UI', 12, 'bold'), 
-                bg='#fee2e2', fg='#991b1b').pack(anchor="w")
+        tk.Label(info_frame, text="📦 No Releases Available", font=('Segoe UI', 12, 'bold'), 
+                bg='#fef3c7', fg='#92400e').pack(anchor="w")
         
-        tk.Label(error_frame, text="Unable to check for updates. Please try again later.", font=('Segoe UI', 10), 
-                bg='#fee2e2', fg='#b91c1c').pack(anchor="w", pady=(5, 0))
+        tk.Label(info_frame, text="Private repository found but no releases available.\nUse GitHub Integration to create the first release.", font=('Segoe UI', 10), 
+                bg='#fef3c7', fg='#b45309', justify="left").pack(anchor="w", pady=(5, 0))
     
     def _start_update(self):
         """Start the update process"""
@@ -463,8 +495,9 @@ class RiceAutoUpdater:
     def _background_check(self, callback=None):
         """Background update check"""
         try:
+            headers = self._get_auth_headers()
             url = f"https://api.github.com/repos/{self.github_username}/{self.github_repo}/releases/latest"
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, headers=headers, timeout=5)
             
             if response.status_code == 200:
                 release_data = response.json()
