@@ -652,7 +652,7 @@ class GitHubIntegrationManager:
             self._show_enhanced_popup("Setup Error", f"Error setting up CI/CD: {str(e)}", "error")
     
     def _create_release(self):
-        """Create initial release"""
+        """Create release with automatic version increment"""
         repo_name = self.repo_entry.get().strip()
         if not repo_name:
             self._show_enhanced_popup("Missing Repository Name", "Please enter a repository name.", "warning")
@@ -666,7 +666,7 @@ class GitHubIntegrationManager:
         # Set repo name if check passed
         self.repo_name = repo_name
         
-        self._add_progress("Creating initial release...")
+        self._add_progress("Creating release...")
         
         try:
             headers = {
@@ -674,11 +674,40 @@ class GitHubIntegrationManager:
                 'Accept': 'application/vnd.github.v3+json'
             }
             
+            # Get existing releases to determine next version
+            releases_response = requests.get(f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/releases',
+                                           headers=headers, timeout=10)
+            
+            next_version = "v1.0.0"
+            if releases_response.status_code == 200:
+                releases = releases_response.json()
+                if releases:
+                    # Find highest version number
+                    versions = []
+                    for release in releases:
+                        tag = release['tag_name']
+                        if tag.startswith('v') and '.' in tag:
+                            try:
+                                version_parts = tag[1:].split('.')
+                                if len(version_parts) >= 2:
+                                    major = int(version_parts[0])
+                                    minor = int(version_parts[1])
+                                    patch = int(version_parts[2]) if len(version_parts) > 2 else 0
+                                    versions.append((major, minor, patch))
+                            except ValueError:
+                                continue
+                    
+                    if versions:
+                        # Get highest version and increment patch
+                        highest = max(versions)
+                        next_version = f"v{highest[0]}.{highest[1]}.{highest[2] + 1}"
+                        self._add_progress(f"📈 Next version: {next_version}")
+            
             data = {
-                'tag_name': 'v1.0.0',
+                'tag_name': next_version,
                 'target_commitish': 'main',
-                'name': 'RICE Tester v1.0.0 - Enterprise Edition',
-                'body': '''# RICE Tester Enterprise Edition v1.0.0
+                'name': f'RICE Tester {next_version} - Enterprise Edition',
+                'body': f'''# RICE Tester Enterprise Edition {next_version}
 
 ## 🚀 Enterprise Features
 - **Personal Analytics Dashboard**: Individual performance insights and achievements
@@ -698,7 +727,10 @@ class GitHubIntegrationManager:
 3. Use RUN_RICE_TESTER.bat for daily launches
 
 **Created with ❤️ by IQ (Infor Q) & Van Anthony Silleza**
-*Enterprise-Grade FSM Testing Platform*''',
+*Enterprise-Grade FSM Testing Platform*
+
+---
+*Release generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*''',
                 'draft': False,
                 'prerelease': False
             }
@@ -708,7 +740,7 @@ class GitHubIntegrationManager:
             
             if response.status_code == 201:
                 release_data = response.json()
-                self._add_progress("✅ Release v1.0.0 created successfully!")
+                self._add_progress(f"✅ Release {next_version} created successfully!")
                 self._add_progress(f"🔗 Release URL: {release_data['html_url']}")
                 self._add_progress("🎉 GitHub CI/CD setup is now complete!")
                 self._add_progress("")
@@ -717,7 +749,7 @@ class GitHubIntegrationManager:
                 self._add_progress("2. Add personal dashboard button to RICE Tester UI")
                 self._add_progress("3. Deploy enhanced RICE Tester to your team")
                 
-                self._show_enhanced_popup("Release Created", "Initial release v1.0.0 created successfully! GitHub CI/CD is now fully configured.", "success")
+                self._show_enhanced_popup("Release Created", f"Release {next_version} created successfully! GitHub CI/CD is now fully configured.", "success")
             else:
                 error_msg = response.json().get('message', 'Unknown error')
                 self._add_progress(f"❌ Failed to create release: {error_msg}")
