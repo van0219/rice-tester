@@ -538,6 +538,9 @@ class GitHubIntegrationManager:
                 with open(workflow_path, 'r', encoding='utf-8') as f:
                     workflow_content = f.read()
                 
+                # Auto-update deprecated action versions
+                workflow_content = self._update_action_versions(workflow_content)
+                
                 # Create .github/workflows directory structure
                 headers = {
                     'Authorization': f'token {self.github_token}',
@@ -757,6 +760,29 @@ class GitHubIntegrationManager:
             print(f"Failed to load GitHub config: {e}")
         
         return False
+    
+    def _update_action_versions(self, workflow_content):
+        """Auto-update deprecated GitHub Action versions"""
+        updates_made = False
+        
+        # Update deprecated action versions
+        version_updates = {
+            'actions/upload-artifact@v3': 'actions/upload-artifact@v4',
+            'actions/download-artifact@v3': 'actions/download-artifact@v4',
+            'actions/upload-artifact@v2': 'actions/upload-artifact@v4',
+            'actions/download-artifact@v2': 'actions/download-artifact@v4'
+        }
+        
+        for old_version, new_version in version_updates.items():
+            if old_version in workflow_content:
+                workflow_content = workflow_content.replace(old_version, new_version)
+                updates_made = True
+                self._add_progress(f"🔄 Auto-updated: {old_version} → {new_version}")
+        
+        if updates_made:
+            self._add_progress("✅ Workflow file automatically updated with latest action versions")
+        
+        return workflow_content
     
     def _show_enhanced_popup(self, title, message, status):
         """Show enhanced popup that doesn't hide existing forms"""
