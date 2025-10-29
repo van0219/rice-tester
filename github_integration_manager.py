@@ -34,9 +34,9 @@ class GitHubIntegrationManager:
     def show_github_integration_dialog(self):
         """Show GitHub integration panel with login and management"""
         
-        panel = create_enhanced_dialog(None, "🐙 GitHub Integration - RICE Tester CI/CD", 900, 700, modal=False)
+        panel = create_enhanced_dialog(None, "🐙 GitHub Integration - RICE Tester CI/CD", 900, 736, modal=False)
         panel.resizable(False, False)
-        panel.maxsize(900, 700)
+        panel.maxsize(900, 736)
         
         try:
             panel.iconbitmap("infor_logo.ico")
@@ -231,9 +231,56 @@ class GitHubIntegrationManager:
                              cursor='hand2', bd=0, command=self._create_release)
         step4_btn.pack(side="left")
         
+        # Release Information section
+        release_frame = tk.Frame(parent, bg='#e0f2fe', relief='solid', bd=1, padx=20, pady=15)
+        release_frame.pack(fill="x", pady=(20, 10))
+        
+        tk.Label(release_frame, text="📦 Release Information", font=('Segoe UI', 12, 'bold'), 
+                bg='#e0f2fe', fg='#0277bd').pack(anchor="w", pady=(0, 10))
+        
+        # Release URL
+        url_frame = tk.Frame(release_frame, bg='#e0f2fe')
+        url_frame.pack(fill="x", pady=(0, 5))
+        
+        tk.Label(url_frame, text="Team Download Link:", font=('Segoe UI', 10, 'bold'), 
+                bg='#e0f2fe', fg='#01579b').pack(anchor="w")
+        
+        self.release_url = tk.Entry(url_frame, font=('Consolas', 9), width=70, state='readonly')
+        self.release_url.pack(fill="x", pady=(2, 0))
+        self.release_url.insert(0, f"https://github.com/{self.github_username}/rice-tester/releases")
+        
+        # Current Version
+        version_frame = tk.Frame(release_frame, bg='#e0f2fe')
+        version_frame.pack(fill="x", pady=(5, 0))
+        
+        tk.Label(version_frame, text="Current Version:", font=('Segoe UI', 10, 'bold'), 
+                bg='#e0f2fe', fg='#01579b').pack(side="left")
+        
+        tk.Label(version_frame, text="v1.0.0 (Latest Release)", font=('Segoe UI', 10), 
+                bg='#e0f2fe', fg='#0277bd').pack(side="left", padx=(10, 0))
+        
+        # Copy button
+        copy_btn = tk.Button(release_frame, text="📋 Copy Link", font=('Segoe UI', 9, 'bold'), 
+                           bg='#0288d1', fg='#ffffff', relief='flat', padx=15, pady=5, 
+                           cursor='hand2', bd=0, command=self._copy_release_url)
+        copy_btn.pack(anchor="w", pady=(10, 0))
+        
+        # Updates vs Manual Download explanation
+        info_frame = tk.Frame(release_frame, bg='#fff3e0', relief='solid', bd=1, padx=10, pady=8)
+        info_frame.pack(fill="x", pady=(10, 0))
+        
+        tk.Label(info_frame, text="💡 Updates Button vs Manual Download:", font=('Segoe UI', 9, 'bold'), 
+                bg='#fff3e0', fg='#e65100').pack(anchor="w")
+        
+        explanation = """• Updates Button: Automatic in-app update (preserves settings, seamless)
+• Manual Download: Fresh installation from GitHub (team deployment)"""
+        
+        tk.Label(info_frame, text=explanation, font=('Segoe UI', 8), 
+                bg='#fff3e0', fg='#bf360c', justify="left").pack(anchor="w", pady=(3, 0))
+        
         # Progress section
         progress_frame = tk.Frame(parent, bg='#f6f8fa', relief='solid', bd=1, padx=20, pady=15)
-        progress_frame.pack(fill="x", pady=(20, 0))
+        progress_frame.pack(fill="x", pady=(10, 0))
         
         tk.Label(progress_frame, text="📊 Setup Progress", font=('Segoe UI', 12, 'bold'), 
                 bg='#f6f8fa', fg='#24292e').pack(anchor="w", pady=(0, 10))
@@ -795,6 +842,23 @@ class GitHubIntegrationManager:
             self._add_progress("✅ Workflow file automatically updated with latest action versions")
         
         return workflow_content
+    
+    def _copy_release_url(self):
+        """Copy release URL to clipboard"""
+        try:
+            url = f"https://github.com/{self.github_username}/rice-tester/releases"
+            # Copy to clipboard
+            import tkinter as tk
+            root = tk.Tk()
+            root.withdraw()
+            root.clipboard_clear()
+            root.clipboard_append(url)
+            root.update()
+            root.destroy()
+            
+            self._show_enhanced_popup("Copied", "Release URL copied to clipboard!", "success")
+        except Exception as e:
+            self._show_enhanced_popup("Error", f"Failed to copy URL: {str(e)}", "error")
     
     def _show_enhanced_popup(self, title, message, status):
         """Show enhanced popup that doesn't hide existing forms"""
