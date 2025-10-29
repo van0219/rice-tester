@@ -8,7 +8,10 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
-from rice_dialogs import center_dialog
+try:
+    from enhanced_popup_system import create_enhanced_dialog
+except ImportError:
+    from Temp.enhanced_popup_system import create_enhanced_dialog
 
 class PersonalAnalytics:
     """
@@ -21,12 +24,80 @@ class PersonalAnalytics:
         self.show_popup = show_popup_callback
         self.user_id = db_manager.user_id
     
+    def show_full_analytics(self):
+        """Show full analytics dashboard with trends and charts"""
+        dashboard = create_enhanced_dialog(None, "📊 Full Analytics Dashboard", 1000, 700, modal=False)
+        dashboard.resizable(True, True)  # Enable maximize for trends charts
+        dashboard.state('zoomed')  # Start maximized for better chart viewing
+        
+        try:
+            dashboard.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Header
+        header_frame = tk.Frame(dashboard, bg='#1e40af', height=80)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        title_label = tk.Label(header_frame, text="📊 Full Analytics Dashboard", 
+                              font=('Segoe UI', 18, 'bold'), bg='#1e40af', fg='#ffffff')
+        title_label.pack(side="left", padx=25, pady=25)
+        
+        # Main content with tabs
+        notebook = ttk.Notebook(dashboard)
+        notebook.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Overview & Trends tabs only
+        self._create_overview_tab(notebook)
+        self._create_trends_tab(notebook)
+        
+        # Close button
+        close_frame = tk.Frame(dashboard, bg='#ffffff', pady=15)
+        close_frame.pack(fill="x")
+        
+        tk.Button(close_frame, text="Close Dashboard", font=('Segoe UI', 11, 'bold'), 
+                 bg='#6b7280', fg='#ffffff', relief='flat', padx=25, pady=10, 
+                 cursor='hand2', bd=0, command=dashboard.destroy).pack()
+    
+    def show_achievements(self):
+        """Show achievements dashboard"""
+        dashboard = create_enhanced_dialog(None, "🏆 Achievements Dashboard", 800, 600, modal=False)
+        dashboard.resizable(True, True)  # Enable maximize
+        
+        try:
+            dashboard.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Header
+        header_frame = tk.Frame(dashboard, bg='#1e40af', height=80)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        title_label = tk.Label(header_frame, text="🏆 Your Achievements", 
+                              font=('Segoe UI', 18, 'bold'), bg='#1e40af', fg='#ffffff')
+        title_label.pack(side="left", padx=25, pady=25)
+        
+        # Main content with tabs
+        notebook = ttk.Notebook(dashboard)
+        notebook.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Achievements & Optimization tabs only
+        self._create_achievements_tab(notebook)
+        self._create_optimization_tab(notebook)
+        
+        # Close button
+        close_frame = tk.Frame(dashboard, bg='#ffffff', pady=15)
+        close_frame.pack(fill="x")
+        
+        tk.Button(close_frame, text="Close Dashboard", font=('Segoe UI', 11, 'bold'), 
+                 bg='#6b7280', fg='#ffffff', relief='flat', padx=25, pady=10, 
+                 cursor='hand2', bd=0, command=dashboard.destroy).pack()
+    
     def show_personal_dashboard(self):
         """Show comprehensive personal analytics dashboard"""
-        dashboard = tk.Toplevel()
-        dashboard.title("🏆 Your Personal Testing Dashboard")
-        center_dialog(dashboard, 1000, 700)
-        dashboard.configure(bg='#ffffff')
+        dashboard = create_enhanced_dialog(None, "🏆 Your Personal Testing Dashboard", 1000, 700, modal=False)
         
         try:
             dashboard.iconbitmap("infor_logo.ico")
@@ -139,6 +210,14 @@ class PersonalAnalytics:
             tk.Label(info_frame, text=test['executed_at'], font=('Segoe UI', 9), 
                     bg='#ffffff', fg='#6b7280').pack(side="right")
         
+        # Enable mouse wheel scrolling for overview
+        def _on_mousewheel_overview(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind scroll events to canvas and scrollable frame
+        canvas.bind("<MouseWheel>", _on_mousewheel_overview)
+        scrollable_frame.bind("<MouseWheel>", _on_mousewheel_overview)
+        
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
     
@@ -147,11 +226,25 @@ class PersonalAnalytics:
         trends_frame = tk.Frame(notebook, bg='#ffffff')
         notebook.add(trends_frame, text="📈 Trends")
         
+        # Scrollable content with both vertical and horizontal scrolling
+        canvas = tk.Canvas(trends_frame, bg='#ffffff')
+        v_scrollbar = ttk.Scrollbar(trends_frame, orient="vertical", command=canvas.yview)
+        h_scrollbar = ttk.Scrollbar(trends_frame, orient="horizontal", command=canvas.xview)
+        scrollable_frame = tk.Frame(canvas, bg='#ffffff')
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
         # Chart container
-        chart_frame = tk.Frame(trends_frame, bg='#ffffff', padx=20, pady=20)
+        chart_frame = tk.Frame(scrollable_frame, bg='#ffffff', padx=20, pady=20)
         chart_frame.pack(fill="both", expand=True)
         
-        # Create matplotlib figure
+        # Create matplotlib figure with optimal size for dashboard viewing
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 8))
         fig.patch.set_facecolor('#ffffff')
         
@@ -193,12 +286,36 @@ class PersonalAnalytics:
             ax4.set_ylabel('Success Rate (%)')
             ax4.set_ylim(0, 100)
         
-        plt.tight_layout()
+        plt.tight_layout(pad=2.0)  # Add padding for better readability
         
         # Embed chart in tkinter
         canvas_widget = FigureCanvasTkAgg(fig, chart_frame)
         canvas_widget.draw()
         canvas_widget.get_tk_widget().pack(fill="both", expand=True)
+        
+        # Enable mouse wheel scrolling for trends (both vertical and horizontal)
+        def _on_mousewheel_trends(event):
+            # Vertical scrolling with mouse wheel
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        def _on_shift_mousewheel_trends(event):
+            # Horizontal scrolling with Shift+mouse wheel
+            canvas.xview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind scroll events to canvas and all child widgets
+        canvas.bind("<MouseWheel>", _on_mousewheel_trends)
+        canvas.bind("<Shift-MouseWheel>", _on_shift_mousewheel_trends)
+        canvas_widget.get_tk_widget().bind("<MouseWheel>", _on_mousewheel_trends)
+        canvas_widget.get_tk_widget().bind("<Shift-MouseWheel>", _on_shift_mousewheel_trends)
+        
+        # Also bind to the scrollable frame
+        scrollable_frame.bind("<MouseWheel>", _on_mousewheel_trends)
+        scrollable_frame.bind("<Shift-MouseWheel>", _on_shift_mousewheel_trends)
+        
+        # Pack scrollbars and canvas
+        canvas.pack(side="left", fill="both", expand=True)
+        v_scrollbar.pack(side="right", fill="y")
+        h_scrollbar.pack(side="bottom", fill="x")
     
     def _create_achievements_tab(self, notebook):
         """Create achievements and insights tab"""
@@ -241,6 +358,14 @@ class PersonalAnalytics:
         for achievement in achievements['in_progress']:
             self._create_achievement_card(progress_frame, achievement, False)
         
+        # Enable mouse wheel scrolling for achievements
+        def _on_mousewheel_achievements(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind scroll events to canvas and scrollable frame
+        canvas.bind("<MouseWheel>", _on_mousewheel_achievements)
+        scrollable_frame.bind("<MouseWheel>", _on_mousewheel_achievements)
+        
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
     
@@ -274,6 +399,14 @@ class PersonalAnalytics:
         for suggestion in suggestions:
             self._create_suggestion_card(content_frame, suggestion)
         
+        # Enable mouse wheel scrolling for optimization
+        def _on_mousewheel_optimization(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind scroll events to canvas and scrollable frame
+        canvas.bind("<MouseWheel>", _on_mousewheel_optimization)
+        scrollable_frame.bind("<MouseWheel>", _on_mousewheel_optimization)
+        
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
     
@@ -305,17 +438,31 @@ class PersonalAnalytics:
         info_frame = tk.Frame(card, bg=bg_color)
         info_frame.pack(fill="x", padx=15, pady=15)
         
-        tk.Label(info_frame, text=achievement['icon'], font=('Segoe UI', 20), 
-                bg=bg_color).pack(side="left", padx=(0, 10))
+        icon_label = tk.Label(info_frame, text=achievement['icon'], font=('Segoe UI', 20), 
+                bg=bg_color)
+        icon_label.pack(side="left", padx=(0, 10))
         
         text_frame = tk.Frame(info_frame, bg=bg_color)
         text_frame.pack(side="left", fill="x", expand=True)
         
-        tk.Label(text_frame, text=achievement['title'], font=('Segoe UI', 12, 'bold'), 
-                bg=bg_color, fg=text_color, anchor="w").pack(fill="x")
+        title_label = tk.Label(text_frame, text=achievement['title'], font=('Segoe UI', 12, 'bold'), 
+                bg=bg_color, fg=text_color, anchor="w")
+        title_label.pack(fill="x")
         
-        tk.Label(text_frame, text=achievement['description'], font=('Segoe UI', 9), 
-                bg=bg_color, fg=text_color, anchor="w").pack(fill="x")
+        desc_label = tk.Label(text_frame, text=achievement['description'], font=('Segoe UI', 9), 
+                bg=bg_color, fg=text_color, anchor="w")
+        desc_label.pack(fill="x")
+        
+        # Bind scroll events to all card elements
+        def bind_scroll_to_widget(widget):
+            widget.bind("<MouseWheel>", lambda e: parent.master.master.master.yview_scroll(int(-1*(e.delta/120)), "units"))
+        
+        bind_scroll_to_widget(card)
+        bind_scroll_to_widget(info_frame)
+        bind_scroll_to_widget(icon_label)
+        bind_scroll_to_widget(text_frame)
+        bind_scroll_to_widget(title_label)
+        bind_scroll_to_widget(desc_label)
         
         if not unlocked and 'progress' in achievement:
             # Progress bar
@@ -344,21 +491,39 @@ class PersonalAnalytics:
         header_frame = tk.Frame(content_frame, bg='#fef3c7')
         header_frame.pack(fill="x", pady=(0, 10))
         
-        tk.Label(header_frame, text=suggestion['icon'], font=('Segoe UI', 16), 
-                bg='#fef3c7').pack(side="left", padx=(0, 10))
+        icon_label = tk.Label(header_frame, text=suggestion['icon'], font=('Segoe UI', 16), 
+                bg='#fef3c7')
+        icon_label.pack(side="left", padx=(0, 10))
         
-        tk.Label(header_frame, text=suggestion['title'], font=('Segoe UI', 12, 'bold'), 
-                bg='#fef3c7', fg='#92400e').pack(side="left")
+        title_label = tk.Label(header_frame, text=suggestion['title'], font=('Segoe UI', 12, 'bold'), 
+                bg='#fef3c7', fg='#92400e')
+        title_label.pack(side="left")
         
         # Description
-        tk.Label(content_frame, text=suggestion['description'], font=('Segoe UI', 10), 
-                bg='#fef3c7', fg='#451a03', wraplength=800, justify="left").pack(fill="x")
+        desc_label = tk.Label(content_frame, text=suggestion['description'], font=('Segoe UI', 10), 
+                bg='#fef3c7', fg='#451a03', wraplength=800, justify="left")
+        desc_label.pack(fill="x")
         
         # Action button
+        action_btn = None
         if 'action' in suggestion:
-            tk.Button(content_frame, text=suggestion['action'], font=('Segoe UI', 9, 'bold'), 
+            action_btn = tk.Button(content_frame, text=suggestion['action'], font=('Segoe UI', 9, 'bold'), 
                      bg='#f59e0b', fg='#ffffff', relief='flat', padx=15, pady=5, 
-                     cursor='hand2', bd=0).pack(anchor="w", pady=(10, 0))
+                     cursor='hand2', bd=0)
+            action_btn.pack(anchor="w", pady=(10, 0))
+        
+        # Bind scroll events to all card elements
+        def bind_scroll_to_widget(widget):
+            widget.bind("<MouseWheel>", lambda e: parent.master.master.master.yview_scroll(int(-1*(e.delta/120)), "units"))
+        
+        bind_scroll_to_widget(card)
+        bind_scroll_to_widget(content_frame)
+        bind_scroll_to_widget(header_frame)
+        bind_scroll_to_widget(icon_label)
+        bind_scroll_to_widget(title_label)
+        bind_scroll_to_widget(desc_label)
+        if action_btn:
+            bind_scroll_to_widget(action_btn)
     
     def _get_personal_statistics(self):
         """Get personal testing statistics"""
