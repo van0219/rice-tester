@@ -319,6 +319,17 @@ class DatabaseManager:
             )
         """)
         
+        # Create TES-070 templates table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tes070_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                template_format TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        """)
+        
         # Add file_content column if it doesn't exist (for existing databases)
         try:
             cursor.execute("ALTER TABLE service_accounts ADD COLUMN file_content BLOB")
@@ -851,6 +862,33 @@ class DatabaseManager:
             SELECT file_content FROM tes070_versions 
             WHERE id = ? AND user_id = ?
         """, (version_id, self.user_id))
+        result = cursor.fetchone()
+        return result[0] if result else None
+    
+    def save_tes070_template(self, template_format):
+        """Save TES-070 name format template"""
+        cursor = self.conn.cursor()
+        
+        # Delete existing template for user
+        cursor.execute("DELETE FROM tes070_templates WHERE user_id = ?", (self.user_id,))
+        
+        # Insert new template
+        cursor.execute("""
+            INSERT INTO tes070_templates (user_id, template_format)
+            VALUES (?, ?)
+        """, (self.user_id, template_format))
+        
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def get_tes070_template(self):
+        """Get TES-070 name format template for user"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT template_format FROM tes070_templates 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC LIMIT 1
+        """, (self.user_id,))
         result = cursor.fetchone()
         return result[0] if result else None
     
