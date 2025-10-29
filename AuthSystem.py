@@ -370,7 +370,9 @@ class AuthSystem:
                                   padx=btn_padx, pady=btn_pady, cursor='hand2', bd=2,
                                   highlightbackground='#D85A1C',
                                   command=self.enhanced_login)
-        self.login_btn.pack(fill="x", pady=btn_margin_y, padx=btn_margin_x)
+        # Increase bottom padding by 0.5 inch (36 pixels)
+        btn_margin_y_extended = (btn_margin_y[0], btn_margin_y[1] + 36)
+        self.login_btn.pack(fill="x", pady=btn_margin_y_extended, padx=btn_margin_x)
         
         # Enhanced keyboard shortcuts
         if hasattr(self, 'password_entry'):
