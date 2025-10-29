@@ -455,7 +455,14 @@ class PersonalAnalytics:
         
         # Bind scroll events to all card elements
         def bind_scroll_to_widget(widget):
-            widget.bind("<MouseWheel>", lambda e: parent.master.master.master.yview_scroll(int(-1*(e.delta/120)), "units"))
+            def scroll_handler(event):
+                # Find the canvas by traversing up the widget hierarchy
+                current = widget
+                while current and not hasattr(current, 'yview_scroll'):
+                    current = current.master
+                if current and hasattr(current, 'yview_scroll'):
+                    current.yview_scroll(int(-1*(event.delta/120)), "units")
+            widget.bind("<MouseWheel>", scroll_handler)
         
         bind_scroll_to_widget(card)
         bind_scroll_to_widget(info_frame)
@@ -514,7 +521,14 @@ class PersonalAnalytics:
         
         # Bind scroll events to all card elements
         def bind_scroll_to_widget(widget):
-            widget.bind("<MouseWheel>", lambda e: parent.master.master.master.yview_scroll(int(-1*(e.delta/120)), "units"))
+            def scroll_handler(event):
+                # Find the canvas by traversing up the widget hierarchy
+                current = widget
+                while current and not hasattr(current, 'yview_scroll'):
+                    current = current.master
+                if current and hasattr(current, 'yview_scroll'):
+                    current.yview_scroll(int(-1*(event.delta/120)), "units")
+            widget.bind("<MouseWheel>", scroll_handler)
         
         bind_scroll_to_widget(card)
         bind_scroll_to_widget(content_frame)
