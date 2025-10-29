@@ -337,6 +337,9 @@ class AuthSystem:
         # Password field with icon
         self.setup_modern_field("🔒 Password", "password_entry", show="•")
         
+        # Load remembered credentials if available
+        self.load_remembered_credentials()
+        
         # Remember me and forgot password with compact spacing
         options_frame = tk.Frame(self.form_container, bg='#FFFFFF')
         options_frame.pack(fill="x", pady=(3, 6))
@@ -606,6 +609,12 @@ class AuthSystem:
                 'full_name': user[2],
                 'company': user[3] if len(user) > 3 else 'Unknown'
             }
+            
+            # Handle Remember Me functionality
+            if self.remember_var.get():
+                self.save_remembered_credentials(username)
+            else:
+                self.clear_remembered_credentials()
             
             # Update last login with error handling
             try:
@@ -908,6 +917,40 @@ class AuthSystem:
                 self.root.destroy()
             except:
                 pass
+    
+    def save_remembered_credentials(self, username):
+        """💾 Save credentials for Remember Me functionality"""
+        try:
+            remember_file = os.path.join(os.path.dirname(self.db_path), '.remember_me')
+            with open(remember_file, 'w') as f:
+                f.write(username)
+        except Exception as e:
+            print(f"Could not save remembered credentials: {e}")
+    
+    def load_remembered_credentials(self):
+        """📂 Load remembered credentials"""
+        try:
+            remember_file = os.path.join(os.path.dirname(self.db_path), '.remember_me')
+            if os.path.exists(remember_file):
+                with open(remember_file, 'r') as f:
+                    username = f.read().strip()
+                if username and hasattr(self, 'username_entry'):
+                    self.username_entry.insert(0, username)
+                    self.remember_var.set(True)
+                    # Focus on password field since username is filled
+                    if hasattr(self, 'password_entry'):
+                        self.password_entry.focus()
+        except Exception as e:
+            print(f"Could not load remembered credentials: {e}")
+    
+    def clear_remembered_credentials(self):
+        """🗑️ Clear remembered credentials"""
+        try:
+            remember_file = os.path.join(os.path.dirname(self.db_path), '.remember_me')
+            if os.path.exists(remember_file):
+                os.remove(remember_file)
+        except Exception as e:
+            print(f"Could not clear remembered credentials: {e}")
     
     def __del__(self):
         """🧹 Cleanup resources"""
