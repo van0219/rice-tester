@@ -118,6 +118,59 @@ class RiceDataManager:
     def edit_rice_profile(self, profile_id):
         self.dialogs.edit_rice_profile(profile_id, self.refresh_rice_profiles_table)
     
+    def duplicate_rice_profile(self, profile_id):
+        """Duplicate RICE profile"""
+        try:
+            cursor = self.db_manager.conn.cursor()
+            
+            # Get original RICE profile details
+            cursor.execute("""
+                SELECT rice_id, name, type, client_name, channel_name, sftp_profile_name, tenant
+                FROM rice_profiles 
+                WHERE id = ? AND user_id = ?
+            """, (profile_id, self.db_manager.user_id))
+            original = cursor.fetchone()
+            
+            if not original:
+                self.show_popup("Error", "RICE profile not found", "error")
+                return
+            
+            rice_id, name, profile_type, client_name, channel_name, sftp_profile_name, tenant = original
+            
+            # Create new RICE ID by appending "_Copy"
+            new_rice_id = f"{rice_id}_Copy"
+            new_name = f"{name} (Copy)"
+            
+            # Check if the new RICE ID already exists
+            cursor.execute("SELECT id FROM rice_profiles WHERE rice_id = ? AND user_id = ?", (new_rice_id, self.db_manager.user_id))
+            if cursor.fetchone():
+                # If exists, append a number
+                counter = 2
+                while True:
+                    test_rice_id = f"{rice_id}_Copy{counter}"
+                    cursor.execute("SELECT id FROM rice_profiles WHERE rice_id = ? AND user_id = ?", (test_rice_id, self.db_manager.user_id))
+                    if not cursor.fetchone():
+                        new_rice_id = test_rice_id
+                        new_name = f"{name} (Copy {counter})"
+                        break
+                    counter += 1
+            
+            # Create new RICE profile
+            cursor.execute("""
+                INSERT INTO rice_profiles (user_id, rice_id, name, type, client_name, channel_name, sftp_profile_name, tenant)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (self.db_manager.user_id, new_rice_id, new_name, profile_type, client_name, channel_name, sftp_profile_name, tenant))
+            
+            self.db_manager.conn.commit()
+            
+            # Refresh the RICE profiles table
+            self.refresh_rice_profiles_table()
+            
+            self.show_popup("Success", f"RICE profile '{new_rice_id}' created successfully!", "success")
+            
+        except Exception as e:
+            self.show_popup("Error", f"Failed to duplicate RICE profile: {str(e)}", "error")
+    
     def delete_rice_profile(self, profile_id):
         self.dialogs.delete_rice_profile(profile_id, self.refresh_rice_profiles_table)
     
@@ -198,8 +251,8 @@ class RiceDataManager:
     
     def _create_rice_profile_row(self, parent, profile, row_index):
         """Create a single RICE profile row"""
-        # profile = (id, rice_id, name, client_name, channel_name, sftp_profile_name, type_name)
-        profile_id, rice_id, name, client_name, channel_name, sftp_profile_name, type_name = profile
+        # profile = (id, rice_id, name, client_name, channel_name, sftp_profile_name, type_name, tenant)
+        profile_id, rice_id, name, client_name, channel_name, sftp_profile_name, type_name, tenant = profile
         
         # Row background color
         bg_color = '#ffffff' if row_index % 2 == 0 else '#f9fafb'
@@ -249,6 +302,13 @@ class RiceDataManager:
                             cursor='hand2', bd=0, highlightthickness=0,
                             command=lambda: self.edit_rice_profile(profile_id))
         edit_btn.pack(side='left', padx=(0, 2))
+        
+        # Duplicate button
+        duplicate_btn = tk.Button(actions_frame, text="Duplicate", font=('Segoe UI', 8), 
+                                 bg='#8b5cf6', fg='#ffffff', relief='flat', padx=8, pady=2, 
+                                 cursor='hand2', bd=0, highlightthickness=0,
+                                 command=lambda: self.duplicate_rice_profile(profile_id))
+        duplicate_btn.pack(side='left', padx=(0, 2))
         
         # Delete button
         delete_btn = tk.Button(actions_frame, text="Delete", font=('Segoe UI', 8), 
