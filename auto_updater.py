@@ -19,14 +19,45 @@ class RiceAutoUpdater:
     Checks GitHub releases and provides seamless updates
     """
     
-    def __init__(self, current_version="1.0.0", github_repo="rice-tester"):
-        self.current_version = current_version
+    def __init__(self, current_version=None, github_repo="rice-tester"):
         self.github_repo = github_repo
         self.github_username = "van0219"  # Will be configurable
         self.update_check_interval = 24  # hours
         
+        # Load current version from version.json
+        self.current_version = self._get_current_version() or current_version or "1.0.0"
+        
         # Load configuration
         self._load_config()
+    
+    def _get_current_version(self):
+        """Get current version from version.json (prioritized) or updater_config.json"""
+        try:
+            # First priority: Look for version.json in current directory (main RICE Tester folder)
+            version_path = os.path.join(os.path.dirname(__file__), 'version.json')
+            
+            if os.path.exists(version_path):
+                with open(version_path, 'r') as f:
+                    version_data = json.load(f)
+                version = version_data.get('version')
+                if version:
+                    # Update updater_config.json to match
+                    self._sync_version_to_config(version)
+                    return version
+        except Exception as e:
+            print(f"Failed to read version.json: {e}")
+        
+        # Fallback: Try updater_config.json
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), 'updater_config.json')
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                return config.get('current_version')
+        except Exception as e:
+            print(f"Failed to read updater_config.json: {e}")
+        
+        return None
     
     def _load_config(self):
         """Load updater configuration"""
@@ -38,7 +69,7 @@ class RiceAutoUpdater:
                 
                 self.github_username = config.get('github_username', 'van0219')
                 self.github_repo = config.get('github_repo', 'rice-tester')
-                self.current_version = config.get('current_version', '1.0.0')
+                # Don't override current_version from config - use version.json priority
         except Exception as e:
             print(f"Failed to load updater config: {e}")
     
@@ -57,6 +88,28 @@ class RiceAutoUpdater:
                 json.dump(config, f, indent=2)
         except Exception as e:
             print(f"Failed to save updater config: {e}")
+    
+    def _sync_version_to_config(self, version):
+        """Sync version from version.json to updater_config.json"""
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), 'updater_config.json')
+            config = {}
+            
+            # Load existing config
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            
+            # Update version
+            config['current_version'] = version
+            config['version_synced_at'] = datetime.now().isoformat()
+            
+            # Save updated config
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+                
+        except Exception as e:
+            print(f"Failed to sync version to config: {e}")
     
     def _get_auth_headers(self):
         """Get authentication headers for GitHub API"""
@@ -327,15 +380,26 @@ class RiceAutoUpdater:
     def _download_and_install(self):
         """Download and install update"""
         try:
-            # Find download URL
+            # Find download URL - check for various ZIP file patterns
             download_url = None
-            for asset in self.latest_release.get('assets', []):
-                if asset['name'].endswith('.zip') and 'RICE_Tester' in asset['name']:
-                    download_url = asset['browser_download_url']
-                    break
+            assets = self.latest_release.get('assets', [])
+            
+            # Priority order: RICE_Tester files, then any ZIP files
+            for asset in assets:
+                if asset['name'].endswith('.zip'):
+                    if any(pattern in asset['name'].upper() for pattern in ['RICE_TESTER', 'RICE-TESTER', 'RICETESTER']):
+                        download_url = asset['browser_download_url']
+                        break
+            
+            # If no RICE Tester specific ZIP, use any ZIP file
+            if not download_url:
+                for asset in assets:
+                    if asset['name'].endswith('.zip'):
+                        download_url = asset['browser_download_url']
+                        break
             
             if not download_url:
-                self._update_status("❌ No download package found")
+                self._update_status("❌ No ZIP package found in release assets")
                 return
             
             self._update_status("📥 Downloading update...")
@@ -363,7 +427,7 @@ class RiceAutoUpdater:
             self.progress_var.set(85)
             
             # Create backup
-            rice_dir = os.path.dirname(os.path.dirname(__file__))  # Go up from Temp
+            rice_dir = os.path.dirname(__file__)  # Current directory
             backup_dir = os.path.join(rice_dir, f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
             
             # Backup critical files
@@ -374,10 +438,6 @@ class RiceAutoUpdater:
                 src = os.path.join(rice_dir, file)
                 if os.path.exists(src):
                     shutil.copy2(src, backup_dir)
-                # Also check Temp folder
-                src_temp = os.path.join(rice_dir, 'Temp', file)
-                if os.path.exists(src_temp):
-                    shutil.copy2(src_temp, os.path.join(backup_dir, file))
             
             self.progress_var.set(90)
             
@@ -413,6 +473,19 @@ class RiceAutoUpdater:
             self.current_version = new_version
             self._save_config()
             
+            # Update version.json for UI display
+            try:
+                version_path = os.path.join(rice_dir, 'version.json')
+                version_data = {'version': new_version}
+                with open(version_path, 'w') as f:
+                    json.dump(version_data, f, indent=2)
+                print(f"Updated version.json to {new_version}")
+            except Exception as e:
+                print(f"Failed to update version.json: {e}")
+            
+            # Also sync to updater config
+            self._sync_version_to_config(new_version)
+            
             self.progress_var.set(100)
             self._update_status("✅ Update completed successfully!")
             
@@ -430,7 +503,12 @@ class RiceAutoUpdater:
         """Show update completion dialog"""
         completion_dialog = tk.Toplevel(self.dialog)
         completion_dialog.title("✅ Update Complete")
-        center_dialog(completion_dialog, 450, 300)
+        
+        # Calculate responsive height (40% of screen height, min 300px, max 500px)
+        screen_height = completion_dialog.winfo_screenheight()
+        responsive_height = max(300, min(500, int(screen_height * 0.4)))
+        
+        center_dialog(completion_dialog, 450, responsive_height)
         completion_dialog.configure(bg='#ffffff')
         completion_dialog.grab_set()
         
@@ -486,10 +564,29 @@ class RiceAutoUpdater:
             if hasattr(self, 'dialog'):
                 self.dialog.destroy()
             
-            # Restart application
-            rice_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'RICE_Tester.py')
-            if os.path.exists(rice_path):
-                subprocess.Popen([sys.executable, rice_path])
+            # Find RICE Tester main file
+            rice_dir = os.path.dirname(__file__)  # Current directory
+            possible_files = ['RICE_Tester.py', 'SeleniumInboundTester_Lite.py']
+            
+            rice_path = None
+            for filename in possible_files:
+                test_path = os.path.join(rice_dir, filename)
+                if os.path.exists(test_path):
+                    rice_path = test_path
+                    break
+            
+            if rice_path:
+                # Start new process and exit current one
+                subprocess.Popen([sys.executable, rice_path], cwd=rice_dir)
+                # Close main application window if accessible
+                try:
+                    import tkinter as tk
+                    for widget in tk._default_root.winfo_children():
+                        if hasattr(widget, 'destroy'):
+                            widget.destroy()
+                    tk._default_root.quit()
+                except:
+                    pass
                 sys.exit(0)
             else:
                 messagebox.showinfo("Restart Required", "Please restart RICE Tester manually to complete the update.")
