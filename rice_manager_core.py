@@ -287,13 +287,22 @@ class RiceManager:
         elif hasattr(self.parent, 'master') and hasattr(self.parent.master, 'user'):
             current_user = self.parent.master.user
         
-        # Fallback: Create a basic user object if none found
+        # Try to get user from database if not found in UI
         if not current_user:
-            current_user = {'full_name': 'Current User', 'username': 'user'}
+            try:
+                cursor = self.db_manager.conn.cursor()
+                cursor.execute("SELECT full_name FROM users WHERE id = ?", (self.db_manager.user_id,))
+                result = cursor.fetchone()
+                if result:
+                    current_user = {'full_name': result[0], 'username': 'user'}
+                else:
+                    current_user = {'full_name': 'Unknown User', 'username': 'user'}
+            except Exception:
+                current_user = {'full_name': 'Unknown User', 'username': 'user'}
         
-        # Import and use TES-070 generator (save to database only)
-        from tes070_generator import generate_tes070_to_database
-        generate_tes070_to_database(self.data_manager.current_profile, self.show_popup, current_user, self.db_manager)
+        # Import and use TES-070 generator
+        from tes070_generator import generate_tes070_report
+        generate_tes070_report(self.data_manager.current_profile, self.show_popup, current_user, self.db_manager)
     
     def show_tes070_history(self):
         """Show TES-070 history for selected RICE profile"""
@@ -313,7 +322,7 @@ class RiceManager:
         
         # Create history dialog
         from rice_dialogs import create_enhanced_dialog
-        history_popup = create_enhanced_dialog(None, "TES-070 History", 700, 500, modal=False)
+        history_popup = create_enhanced_dialog(None, "TES-070 History", 628, 500, modal=False)
         history_popup.configure(bg='#ffffff')
         
         try:
@@ -399,7 +408,53 @@ class RiceManager:
             from datetime import datetime
             import os
             
-            default_name = f"TES-070_v{version_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+            # Get saved TES-070 template format
+            template_format = self.db_manager.get_tes070_template()
+            if not template_format:
+                template_format = "TES-070_{rice_id}_{date}_v{version}.docx"
+            
+            # Get RICE profile data for placeholders
+            rice_data = None
+            try:
+                cursor = self.db_manager.conn.cursor()
+                cursor.execute("SELECT name, rice_id, client_name, tenant FROM rice_profiles WHERE rice_id = ? OR id = ?", 
+                              (self.data_manager.current_profile, self.data_manager.current_profile))
+                rice_data = cursor.fetchone()
+            except:
+                pass
+            
+            # Prepare placeholder values
+            current_date = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            if rice_data:
+                rice_name, rice_id, client_name, tenant = rice_data
+                placeholders = {
+                    'rice_id': rice_id or 'RICE',
+                    'name': rice_name or 'Report',
+                    'client_name': client_name or 'Client',
+                    'tenant': tenant or 'Tenant',
+                    'date': current_date,
+                    'version': str(version_number)
+                }
+            else:
+                placeholders = {
+                    'rice_id': str(self.data_manager.current_profile),
+                    'name': 'Report',
+                    'client_name': 'Client',
+                    'tenant': 'Tenant',
+                    'date': current_date,
+                    'version': str(version_number)
+                }
+            
+            # Apply template format
+            try:
+                default_name = template_format.format(**placeholders)
+            except (KeyError, ValueError):
+                default_name = f"TES-070_{placeholders['rice_id']}_v{version_number}_{current_date}.docx"
+            
+            # Ensure .docx extension
+            if not default_name.lower().endswith('.docx'):
+                default_name += '.docx'
             downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads")
             
             output_path = filedialog.asksaveasfilename(
