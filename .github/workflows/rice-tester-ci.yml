@@ -3,11 +3,6 @@
 
 name: 🚀 RICE Tester CI/CD
 
-permissions:
-  contents: write
-  releases: write
-  actions: read
-
 on:
   push:
     branches: [ main, develop ]
@@ -71,6 +66,9 @@ jobs:
     runs-on: windows-latest
     needs: [validate, build]
     if: github.event_name == 'release'
+    permissions:
+      contents: write
+      actions: read
     
     steps:
     - name: 📥 Download Build
