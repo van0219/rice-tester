@@ -148,6 +148,13 @@ class DatabaseManager:
         except Exception:
             pass  # Column already exists
         
+        # Add tenant column if it doesn't exist (for existing databases)
+        try:
+            cursor.execute("ALTER TABLE rice_profiles ADD COLUMN tenant TEXT")
+            self.conn.commit()
+        except Exception:
+            pass  # Column already exists
+        
         # Add executed_at column to scenarios table if it doesn't exist (for existing databases)
         try:
             cursor.execute("ALTER TABLE scenarios ADD COLUMN executed_at TIMESTAMP")
@@ -298,6 +305,20 @@ class DatabaseManager:
             )
         """)
         
+        # Create TES-070 versions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tes070_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                rice_profile_id TEXT NOT NULL,
+                version_number INTEGER NOT NULL,
+                file_content BLOB NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        """)
+        
         # Add file_content column if it doesn't exist (for existing databases)
         try:
             cursor.execute("ALTER TABLE service_accounts ADD COLUMN file_content BLOB")
@@ -390,7 +411,7 @@ class DatabaseManager:
         """Get all RICE profiles for user"""
         cursor = self.conn.cursor()
         cursor.execute("""
-            SELECT rp.id, rp.rice_id, rp.name, rp.client_name, rp.channel_name, rp.sftp_profile_name, rt.type_name
+            SELECT rp.id, rp.rice_id, rp.name, rp.client_name, rp.channel_name, rp.sftp_profile_name, rt.type_name, rp.tenant
             FROM rice_profiles rp
             LEFT JOIN rice_types rt ON rp.type = rt.type_name
             WHERE rp.user_id = ? 
@@ -398,21 +419,21 @@ class DatabaseManager:
         """, (self.user_id,))
         return cursor.fetchall()
     
-    def save_rice_profile(self, rice_id, name, profile_type, client_name, channel_name, sftp_profile_name=None, profile_id=None):
+    def save_rice_profile(self, rice_id, name, profile_type, client_name, channel_name, sftp_profile_name=None, tenant=None, profile_id=None):
         """Save RICE profile"""
         cursor = self.conn.cursor()
         
         if profile_id:
             cursor.execute("""
                 UPDATE rice_profiles 
-                SET rice_id = ?, name = ?, type = ?, client_name = ?, channel_name = ?, sftp_profile_name = ?
+                SET rice_id = ?, name = ?, type = ?, client_name = ?, channel_name = ?, sftp_profile_name = ?, tenant = ?
                 WHERE id = ? AND user_id = ?
-            """, (rice_id, name, profile_type, client_name, channel_name, sftp_profile_name, profile_id, self.user_id))
+            """, (rice_id, name, profile_type, client_name, channel_name, sftp_profile_name, tenant, profile_id, self.user_id))
         else:
             cursor.execute("""
-                INSERT INTO rice_profiles (user_id, rice_id, name, type, client_name, channel_name, sftp_profile_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (self.user_id, rice_id, name, profile_type, client_name, channel_name, sftp_profile_name))
+                INSERT INTO rice_profiles (user_id, rice_id, name, type, client_name, channel_name, sftp_profile_name, tenant)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (self.user_id, rice_id, name, profile_type, client_name, channel_name, sftp_profile_name, tenant))
         
         self.conn.commit()
         return cursor.lastrowid
@@ -737,7 +758,7 @@ class DatabaseManager:
         """Get RICE profiles with pagination"""
         cursor = self.conn.cursor()
         cursor.execute("""
-            SELECT rp.id, rp.rice_id, rp.name, rp.client_name, rp.channel_name, rp.sftp_profile_name, rt.type_name
+            SELECT rp.id, rp.rice_id, rp.name, rp.client_name, rp.channel_name, rp.sftp_profile_name, rt.type_name, rp.tenant
             FROM rice_profiles rp
             LEFT JOIN rice_types rt ON rp.type = rt.type_name
             WHERE rp.user_id = ? 
@@ -772,6 +793,66 @@ class DatabaseManager:
             WHERE user_id = ? AND rice_profile = ?
         """, (self.user_id, str(rice_profile_id)))
         return cursor.fetchone()[0]
+    
+    def save_tes070_version(self, rice_profile_id, file_content, created_by):
+        """Save TES-070 version and maintain only latest 5 versions"""
+        cursor = self.conn.cursor()
+        
+        # Get current version count for this RICE profile
+        cursor.execute("""
+            SELECT COUNT(*) FROM tes070_versions 
+            WHERE user_id = ? AND rice_profile_id = ?
+        """, (self.user_id, str(rice_profile_id)))
+        version_count = cursor.fetchone()[0]
+        
+        # If we have 5 versions, delete the oldest one
+        if version_count >= 5:
+            cursor.execute("""
+                DELETE FROM tes070_versions 
+                WHERE user_id = ? AND rice_profile_id = ? 
+                AND id = (
+                    SELECT id FROM tes070_versions 
+                    WHERE user_id = ? AND rice_profile_id = ? 
+                    ORDER BY created_at ASC LIMIT 1
+                )
+            """, (self.user_id, str(rice_profile_id), self.user_id, str(rice_profile_id)))
+        
+        # Get next version number
+        cursor.execute("""
+            SELECT COALESCE(MAX(version_number), 0) + 1 FROM tes070_versions 
+            WHERE user_id = ? AND rice_profile_id = ?
+        """, (self.user_id, str(rice_profile_id)))
+        version_number = cursor.fetchone()[0]
+        
+        # Insert new version
+        cursor.execute("""
+            INSERT INTO tes070_versions (user_id, rice_profile_id, version_number, file_content, created_by)
+            VALUES (?, ?, ?, ?, ?)
+        """, (self.user_id, str(rice_profile_id), version_number, file_content, created_by))
+        
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def get_tes070_versions(self, rice_profile_id):
+        """Get all TES-070 versions for a RICE profile (latest 5)"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT id, version_number, created_at, created_by
+            FROM tes070_versions 
+            WHERE user_id = ? AND rice_profile_id = ?
+            ORDER BY created_at DESC
+        """, (self.user_id, str(rice_profile_id)))
+        return cursor.fetchall()
+    
+    def get_tes070_content(self, version_id):
+        """Get TES-070 file content by version ID"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT file_content FROM tes070_versions 
+            WHERE id = ? AND user_id = ?
+        """, (version_id, self.user_id))
+        result = cursor.fetchone()
+        return result[0] if result else None
     
     def close(self):
         """Close database connection"""
