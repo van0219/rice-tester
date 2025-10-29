@@ -180,10 +180,10 @@ class PersonalAnalytics:
         row2 = tk.Frame(cards_frame, bg='#ffffff')
         row2.pack(fill="x", pady=(0, 15))
         
-        self._create_stat_card(row2, "📅 Tests This Week", str(stats['tests_this_week']), "#8b5cf6", 0)
-        self._create_stat_card(row2, "🏆 Best Day", stats['best_day'], "#06b6d4", 1)
-        self._create_stat_card(row2, "📈 Improvement", f"+{stats['improvement']:.1f}%", "#84cc16", 2)
-        self._create_stat_card(row2, "⭐ Quality Score", f"{stats['quality_score']}/10", "#f97316", 3)
+        self._create_stat_card(row2, "📅 Tests Today", str(stats['tests_today']), "#8b5cf6", 0)
+        self._create_stat_card(row2, "✅ Passed Today", str(stats['passed_today']), "#10b981", 1)
+        self._create_stat_card(row2, "❌ Failed Today", str(stats['failed_today']), "#ef4444", 2)
+        self._create_stat_card(row2, "📈 Today's Rate", f"{stats['success_rate_today']:.1f}%" if stats['tests_today'] > 0 else "0.0%", "#06b6d4", 3)
         
         # Recent activity section
         activity_frame = tk.Frame(scrollable_frame, bg='#f8fafc', relief='solid', bd=1)
@@ -554,11 +554,27 @@ class PersonalAnalytics:
         
         basic_stats = cursor.fetchone()
         
+        # Today's actual data
+        cursor.execute("""
+            SELECT COUNT(*) as tests_today,
+                   AVG(CASE WHEN result = 'Passed' THEN 1.0 ELSE 0.0 END) * 100 as success_rate_today,
+                   COUNT(CASE WHEN result = 'Passed' THEN 1 END) as passed_today,
+                   COUNT(CASE WHEN result = 'Failed' THEN 1 END) as failed_today
+            FROM scenarios 
+            WHERE user_id = ? AND DATE(executed_at) = DATE('now') AND executed_at IS NOT NULL
+        """, (self.user_id,))
+        
+        today_stats = cursor.fetchone()
+        
         # Calculate additional metrics
         stats = {
             'total_tests': basic_stats[0] if basic_stats[0] else 0,
             'success_rate': basic_stats[1] if basic_stats[1] else 0,
             'tests_this_week': basic_stats[2] if basic_stats[2] else 0,
+            'tests_today': today_stats[0] if today_stats[0] else 0,
+            'success_rate_today': today_stats[1] if today_stats[1] else 0,
+            'passed_today': today_stats[2] if today_stats[2] else 0,
+            'failed_today': today_stats[3] if today_stats[3] else 0,
             'avg_duration': 45.5,  # Placeholder - would calculate from execution logs
             'current_streak': 3,   # Placeholder - consecutive days with tests
             'best_day': 'Monday',  # Placeholder - day with highest success rate
