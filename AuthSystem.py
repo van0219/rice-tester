@@ -101,16 +101,17 @@ class AuthSystem:
         
         self.root = tk.Tk()
         self.root.title("RICE Tester - Login")
-        self.root.state('zoomed')  # Maximize window on Windows
         self.root.configure(bg='#F5F6FA')
         self.root.resizable(True, True)
         
-        # Ensure window is properly maximized and sized
-        self.root.update_idletasks()
-        self.root.state('zoomed')  # Force maximize again after idletasks
+        # Start in full screen (maximized)
+        self.root.state('zoomed')
         
-        # Bind window state change to handle centering when not maximized
-        self.root.bind('<Configure>', self.on_window_configure)
+        # Ensure window is properly sized
+        self.root.update_idletasks()
+        
+        # Remove auto-centering to allow dragging between monitors
+        # self.root.bind('<Configure>', self.on_window_configure)
         
         # Set custom icon
         try:
@@ -138,28 +139,21 @@ class AuthSystem:
         # Set static navy background color
         self.main_frame.configure(bg='#1E2A38')
         
-        # Center window initially if not maximized
-        self.root.after(100, lambda: self.center_window() if self.root.state() != 'zoomed' else None)
+        # Allow free dragging - no auto-centering
+        # self.root.after(100, lambda: self.center_window() if self.root.state() != 'zoomed' else None)
         
         self.root.mainloop()
         return self.user
 
     def center_window(self):
-        """Center the window on screen"""
-        self.root.update_idletasks()
-        width = self.root.winfo_width()
-        height = self.root.winfo_height()
-        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.root.winfo_screenheight() // 2) - (height // 2) - 50
-        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        """Center the window on screen - disabled to allow dragging"""
+        # Disabled to allow free dragging between monitors
+        pass
     
     def on_window_configure(self, event=None):
-        """Handle window state changes to center when not maximized"""
-        if event and event.widget == self.root:
-            # Check if window is not maximized (zoomed)
-            if self.root.state() != 'zoomed':
-                # Small delay to ensure window dimensions are updated
-                self.root.after(10, self.center_window)
+        """Handle window state changes - disabled to allow dragging"""
+        # Disabled to allow free dragging between monitors
+        pass
 
     def setup_enhanced_styles(self):
         """🎨 Setup enhanced visual styles"""
@@ -379,6 +373,8 @@ class AuthSystem:
             self.password_entry.bind('<Return>', lambda e: self.enhanced_login())
         if hasattr(self, 'username_entry'):
             self.username_entry.bind('<Return>', lambda e: self.password_entry.focus() if hasattr(self, 'password_entry') else None)
+            # Automatically focus on username field
+            self.root.after(100, lambda: self.username_entry.focus())
         
         # Add escape key to close
         self.root.bind('<Escape>', lambda e: self.root.destroy())
@@ -941,7 +937,11 @@ class AuthSystem:
                     self.remember_var.set(True)
                     # Focus on password field since username is filled
                     if hasattr(self, 'password_entry'):
-                        self.password_entry.focus()
+                        self.root.after(100, lambda: self.password_entry.focus())
+                else:
+                    # No remembered username, focus on username field
+                    if hasattr(self, 'username_entry'):
+                        self.root.after(100, lambda: self.username_entry.focus())
         except Exception as e:
             print(f"Could not load remembered credentials: {e}")
     
