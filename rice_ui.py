@@ -166,8 +166,15 @@ class RiceUI:
                                     font=('Segoe UI', 10, 'bold'), bg='#3b82f6', fg='#ffffff',
                                     relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
                                     command=self.callbacks['generate_tes_070'])
-        generate_tes_btn.pack(side="left")
+        generate_tes_btn.pack(side="left", padx=(0, 5))
         generate_tes_btn.configure(cursor='hand2')
+        
+        history_tes_btn = tk.Button(tes_btn_frame, text="📚 TES-070 History", 
+                                   font=('Segoe UI', 10, 'bold'), bg='#6366f1', fg='#ffffff',
+                                   relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
+                                   command=self.callbacks['show_tes070_history'])
+        history_tes_btn.pack(side="left")
+        history_tes_btn.configure(cursor='hand2')
         
         # Scenarios container with pagination
         scenarios_container = tk.Frame(rice_frame, bg='#ffffff')
