@@ -113,6 +113,20 @@ class SeleniumInboundTester:
                               font=self.fonts['title'], bg='#0f172a', fg='#f8fafc')
         title_label.pack(side="left")
         
+        # Version display - read from config
+        try:
+            import json
+            version_path = os.path.join(os.path.dirname(__file__), 'version.json')
+            with open(version_path, 'r') as f:
+                version_data = json.load(f)
+            version_text = f"v{version_data['version']}"
+        except:
+            version_text = "v1.0.7"
+        
+        version_label = tk.Label(left_frame, text=version_text, 
+                                font=self.fonts['body'], bg='#0f172a', fg='#94a3b8')
+        version_label.pack(side="left", padx=(10, 0))
+        
         # Right side - User info
         user_frame = tk.Frame(header_frame, bg='#0f172a')
         user_frame.pack(side="right", padx=(0, 25), pady=5)
@@ -202,7 +216,7 @@ class SeleniumInboundTester:
         self.tab_manager.add_tab("📁 File Channel", lambda parent: self.config_manager.setup_file_channel_tab_content(parent))
         self.tab_manager.add_tab("👣 Test Steps", lambda parent: self.test_steps_manager.setup_test_steps_tab(parent))
         self.tab_manager.add_tab("👥 Test Users", lambda parent: self.test_users_manager.setup_test_users_tab(parent))
-        self.tab_manager.add_tab("🔑 Service Account", lambda parent: self.service_accounts_manager.setup_service_accounts_tab(parent))
+        self.tab_manager.add_tab("🔑 Other Settings", lambda parent: self.service_accounts_manager.setup_service_accounts_tab(parent))
         
         # Show first tab
         self.tab_manager.show_tab("📋 RICE List")
