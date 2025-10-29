@@ -3,6 +3,11 @@
 
 name: 🚀 RICE Tester CI/CD
 
+permissions:
+  contents: write
+  releases: write
+  actions: read
+
 on:
   push:
     branches: [ main, develop ]
