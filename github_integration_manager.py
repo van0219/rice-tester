@@ -256,7 +256,9 @@ class GitHubIntegrationManager:
         tk.Label(version_frame, text="Current Version:", font=('Segoe UI', 10, 'bold'), 
                 bg='#e0f2fe', fg='#01579b').pack(side="left")
         
-        tk.Label(version_frame, text="v1.0.0 (Latest Release)", font=('Segoe UI', 10), 
+        # Read current version from version.json
+        current_version = self._get_current_version()
+        tk.Label(version_frame, text=f"{current_version} (Latest Release)", font=('Segoe UI', 10), 
                 bg='#e0f2fe', fg='#0277bd').pack(side="left", padx=(10, 0))
         
         # Copy button
@@ -413,45 +415,47 @@ class GitHubIntegrationManager:
             # Core Python files (must upload)
             core_files = ['RICE_Tester.py', 'AuthSystem.py', 'SeleniumInboundTester_Lite.py', 
                          'database_manager.py', 'rice_manager.py', 'rice_scenario_manager.py',
-                         'personal_analytics.py', 'auto_updater.py', 'enhanced_run_all_scenarios.py']
+                         'personal_analytics.py', 'tes070_generator.py', 'enhanced_ui_design.py']
             
             # Files to exclude (temporary, debug, backup files)
             exclude_patterns = ['_backup', '_original', 'debug_', 'temp_', 'test_', 'check_', 
                               'analyze_', 'find_', 'create_team', 'create_bulletproof', 
-                              'create_complete', 'create_corrected', 'create_final']
+                              'create_complete', 'create_corrected', 'create_final', 'create_enhanced']
             
-            # Get Python files from main directory (filtered)
+            # Get ALL Python files from main directory (filtered)
             for file in os.listdir(rice_dir):
                 if file.endswith('.py') and not any(pattern in file.lower() for pattern in exclude_patterns):
                     files_to_upload.append(file)
             
-            # Get essential files from Temp folder (only if not in main directory)
+            # Get essential files from Temp folder (only specific ones needed for team)
             temp_dir = os.path.join(rice_dir, 'Temp')
             if os.path.exists(temp_dir):
-                temp_essential = ['personal_analytics.py', 'auto_updater.py', 'enhanced_run_all_scenarios.py',
-                                'enhanced_popup_system.py', 'github_integration_manager.py']
+                temp_essential = ['auto_updater.py', 'enhanced_popup_system.py', 'github_integration_manager.py',
+                                'github_config.json', 'updater_config.json', '.github_workflows_rice-tester-ci.yml']
                 for file in temp_essential:
                     # Only add if not already in main directory
                     if file not in files_to_upload and os.path.exists(os.path.join(temp_dir, file)):
                         files_to_upload.append(file)
             
             # Add essential non-Python files
-            essential_files = ['requirements.txt', 'README.md', 'infor_logo.ico', 'fsm_tester.db']
+            essential_files = ['requirements.txt', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat', 
+                             'infor_logo.ico', 'infor_logo.png', 'fsm_tester.db', 'version.json']
             for file in essential_files:
                 if os.path.exists(os.path.join(rice_dir, file)):
                     files_to_upload.append(file)
             
-            # Ensure core files are prioritized (upload first)
+            # Remove duplicates and ensure core files are prioritized
+            files_to_upload = list(set(files_to_upload))  # Remove duplicates
+            
+            # Prioritize core files (upload first)
             prioritized_files = []
             for core_file in core_files:
                 if core_file in files_to_upload:
                     prioritized_files.append(core_file)
                     files_to_upload.remove(core_file)
             
-            files_to_upload = prioritized_files + files_to_upload
-            
-            # Sort final list
-            files_to_upload = sorted(files_to_upload)
+            # Sort remaining files
+            files_to_upload = prioritized_files + sorted(files_to_upload)
             
             headers = {
                 'Authorization': f'token {self.github_token}',
@@ -894,16 +898,32 @@ class GitHubIntegrationManager:
             except:
                 pass  # Dialog might be destroyed
     
+    def _get_current_version(self):
+        """Get current version from version.json"""
+        try:
+            # Try main directory first
+            version_path = os.path.join(os.path.dirname(__file__).replace('\\Temp', ''), 'version.json')
+            if os.path.exists(version_path):
+                with open(version_path, 'r') as f:
+                    version_data = json.load(f)
+                    return f"v{version_data.get('version', '1.0.0')}"
+        except Exception:
+            pass
+        return "v1.0.0"
+    
     def _save_updater_config(self):
         """Save updater configuration for Updates button"""
         if not self.github_username or not self.repo_name:
             return
         
         try:
+            # Get current version from version.json
+            current_version = self._get_current_version().replace('v', '')
+            
             updater_config = {
                 'github_username': self.github_username,
                 'github_repo': self.repo_name,
-                'current_version': '1.0.0',
+                'current_version': current_version,
                 'configured_at': datetime.now().isoformat()
             }
             
