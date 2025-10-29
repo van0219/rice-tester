@@ -363,6 +363,11 @@ class GitHubIntegrationManager:
             # Dynamic file discovery - automatically include all relevant files
             files_to_upload = []
             
+            # Core Python files (must upload)
+            core_files = ['RICE_Tester.py', 'AuthSystem.py', 'SeleniumInboundTester_Lite.py', 
+                         'database_manager.py', 'rice_manager.py', 'rice_scenario_manager.py',
+                         'personal_analytics.py', 'auto_updater.py', 'enhanced_run_all_scenarios.py']
+            
             # Files to exclude (temporary, debug, backup files)
             exclude_patterns = ['_backup', '_original', 'debug_', 'temp_', 'test_', 'check_', 
                               'analyze_', 'find_', 'create_team', 'create_bulletproof', 
@@ -389,6 +394,15 @@ class GitHubIntegrationManager:
                 if os.path.exists(os.path.join(rice_dir, file)):
                     files_to_upload.append(file)
             
+            # Ensure core files are prioritized (upload first)
+            prioritized_files = []
+            for core_file in core_files:
+                if core_file in files_to_upload:
+                    prioritized_files.append(core_file)
+                    files_to_upload.remove(core_file)
+            
+            files_to_upload = prioritized_files + files_to_upload
+            
             # Sort final list
             files_to_upload = sorted(files_to_upload)
             
@@ -408,8 +422,17 @@ class GitHubIntegrationManager:
                 if not os.path.exists(file_path) and filename in temp_files:
                     file_path = os.path.join(rice_dir, 'Temp', filename)
                 
+                # Skip if file doesn't exist in either location
+                if not os.path.exists(file_path):
+                    self._add_progress(f"⚠️ File not found: {filename}")
+                    continue
+                
                 if os.path.exists(file_path):
                     try:
+                        # Check if file already exists first
+                        check_url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/{filename}'
+                        check_response = requests.get(check_url, headers=headers, timeout=10)
+                        
                         with open(file_path, 'rb') as f:
                             content = base64.b64encode(f.read()).decode('utf-8')
                         
@@ -418,23 +441,62 @@ class GitHubIntegrationManager:
                             'content': content
                         }
                         
-                        url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/{filename}'
-                        response = requests.put(url, headers=headers, json=data, timeout=30)
+                        # If file exists, include SHA for update
+                        if check_response.status_code == 200:
+                            existing_data = check_response.json()
+                            data['sha'] = existing_data['sha']
+                            data['message'] = f'Update {filename}'
                         
-                        if response.status_code in [200, 201]:
-                            uploaded_count += 1
-                            self._add_progress(f"✅ Uploaded {filename}")
-                        else:
-                            self._add_progress(f"⚠️ Failed to upload {filename}")
+                        # Upload with retry logic
+                        for attempt in range(3):
+                            try:
+                                response = requests.put(check_url, headers=headers, json=data, timeout=45)
+                                
+                                if response.status_code in [200, 201]:
+                                    uploaded_count += 1
+                                    self._add_progress(f"✅ Uploaded {filename}")
+                                    break
+                                elif response.status_code == 409:  # Conflict
+                                    self._add_progress(f"⚠️ Conflict uploading {filename}, retrying...")
+                                    if attempt < 2:  # Retry with fresh SHA
+                                        check_response = requests.get(check_url, headers=headers, timeout=10)
+                                        if check_response.status_code == 200:
+                                            data['sha'] = check_response.json()['sha']
+                                        continue
+                                else:
+                                    error_msg = response.json().get('message', 'Unknown error') if response.content else 'Network error'
+                                    self._add_progress(f"⚠️ Failed to upload {filename}: {error_msg}")
+                                    break
+                            except requests.exceptions.Timeout:
+                                if attempt < 2:
+                                    self._add_progress(f"⏳ Timeout uploading {filename}, retrying...")
+                                    continue
+                                else:
+                                    self._add_progress(f"⚠️ Failed to upload {filename}: Timeout")
+                                    break
+                            except Exception as upload_error:
+                                if attempt < 2:
+                                    self._add_progress(f"⏳ Error uploading {filename}, retrying...")
+                                    continue
+                                else:
+                                    self._add_progress(f"⚠️ Failed to upload {filename}: {str(upload_error)}")
+                                    break
                     
                     except Exception as e:
-                        self._add_progress(f"❌ Error uploading {filename}: {str(e)}")
+                        self._add_progress(f"❌ Error processing {filename}: {str(e)}")
                 else:
                     self._add_progress(f"⚠️ File not found: {filename}")
             
             loading.destroy()
-            self._add_progress(f"📁 Upload complete: {uploaded_count} files uploaded")
-            self._show_enhanced_popup("Upload Complete", f"Successfully uploaded {uploaded_count} files to GitHub!", "success")
+            total_files = len(files_to_upload)
+            self._add_progress(f"📁 Upload complete: {uploaded_count}/{total_files} files uploaded")
+            
+            if uploaded_count == total_files:
+                self._show_enhanced_popup("Upload Complete", f"Successfully uploaded all {uploaded_count} files to GitHub!", "success")
+            elif uploaded_count > 0:
+                self._show_enhanced_popup("Partial Upload", f"Uploaded {uploaded_count}/{total_files} files. Some files failed - check progress log.", "warning")
+            else:
+                self._show_enhanced_popup("Upload Failed", "No files were uploaded successfully. Check your connection and try again.", "error")
             
         except Exception as e:
             loading.destroy()
