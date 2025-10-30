@@ -357,12 +357,25 @@ class RiceDataManager:
         """Select a RICE profile and load its scenarios"""
         # Clear previous selection
         if self.selected_rice_row:
-            self.selected_rice_row.config(bg='#ffffff' if self.selected_rice_row.winfo_children()[0].cget('bg') == '#ffffff' else '#f9fafb')
-            for child in self.selected_rice_row.winfo_children():
-                if isinstance(child, tk.Label):
-                    child.config(bg=self.selected_rice_row['bg'])
-                elif isinstance(child, tk.Frame):
-                    child.config(bg=self.selected_rice_row['bg'])
+            try:
+                # Check if widget still exists before accessing it
+                if self.selected_rice_row.winfo_exists():
+                    # Get original background color based on row position
+                    try:
+                        row_index = list(self.selected_rice_row.master.winfo_children()).index(self.selected_rice_row)
+                        original_bg = '#ffffff' if row_index % 2 == 0 else '#f9fafb'
+                    except:
+                        original_bg = '#ffffff'
+                    
+                    self.selected_rice_row.config(bg=original_bg)
+                    for child in self.selected_rice_row.winfo_children():
+                        if isinstance(child, tk.Label):
+                            child.config(bg=original_bg)
+                        elif isinstance(child, tk.Frame):
+                            child.config(bg=original_bg)
+            except tk.TclError:
+                # Widget has been destroyed, ignore
+                pass
         
         # Set new selection
         self.selected_rice_row = row_frame
@@ -370,12 +383,16 @@ class RiceDataManager:
         self.current_profile = profile_id
         
         # Highlight selected row
-        row_frame.config(bg='#dbeafe')
-        for child in row_frame.winfo_children():
-            if isinstance(child, tk.Label):
-                child.config(bg='#dbeafe')
-            elif isinstance(child, tk.Frame):
-                child.config(bg='#dbeafe')
+        try:
+            row_frame.config(bg='#dbeafe')
+            for child in row_frame.winfo_children():
+                if isinstance(child, tk.Label):
+                    child.config(bg='#dbeafe')
+                elif isinstance(child, tk.Frame):
+                    child.config(bg='#dbeafe')
+        except tk.TclError:
+            # Widget has been destroyed, ignore
+            pass
         
         # Update scenarios label
         if hasattr(self, '_ui_components_ref') and self._ui_components_ref:
