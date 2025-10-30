@@ -17,7 +17,7 @@ class ScenarioAddForm:
             next_number = self.db_manager.get_next_scenario_number(current_profile)
             
             # Create add scenario dialog
-            from Temp.enhanced_popup_system import create_enhanced_dialog
+            from enhanced_popup_system import create_enhanced_dialog
             popup = create_enhanced_dialog(None, "Add Scenario", 900, 700, modal=False)
             popup.configure(bg='#ffffff')
             
@@ -387,7 +387,7 @@ class ScenarioAddForm:
                     return
                 
                 # Create edit dialog
-                from Temp.enhanced_popup_system import create_enhanced_dialog
+                from enhanced_popup_system import create_enhanced_dialog
                 edit_popup = create_enhanced_dialog(popup, "Edit Input Value", 400, 250, modal=False)
                 edit_popup.configure(bg='#ffffff')
                 edit_popup.attributes('-topmost', False)
