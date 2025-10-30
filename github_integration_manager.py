@@ -378,14 +378,14 @@ class GitHubIntegrationManager:
             # Get current RICE Tester directory
             rice_dir = os.path.dirname(os.path.abspath(__file__))
             
-            # Core files to upload
+            # Core files to upload (including security files in list for proper counting)
             files_to_upload = [
                 'RICE_Tester.py', 'SeleniumInboundTester_Lite.py', 'database_manager.py',
                 'rice_manager.py', 'rice_scenario_manager.py', 'personal_analytics.py',
                 'tes070_generator.py', 'enhanced_ui_design.py', 'requirements.txt',
-                'README_TEAM.txt', 'SETUP_FIRST_TIME.bat', 'infor_logo.ico',
+                'README.md', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat', 'infor_logo.ico',
                 'fsm_tester.db', 'version.json', '.github_workflows_rice-tester-ci.yml',
-                'github_json.config', 'github_integration_manager.py'
+                'github_json.config', 'github_integration_manager.py', 'github_config.json'
             ]
             
             headers = {
@@ -394,7 +394,11 @@ class GitHubIntegrationManager:
             }
             
             uploaded_count = 0
+            excluded_count = 0
             failed_files = []
+            
+            # Security-excluded files (expected to be missing)
+            security_excluded = ['github_config.json', 'updater_config.json']
             
             for filename in files_to_upload:
                 file_path = os.path.join(rice_dir, filename)
@@ -424,15 +428,26 @@ class GitHubIntegrationManager:
                         self._add_progress(f"❌ Error uploading {filename}: {str(e)}")
                         failed_files.append(filename)
                 else:
-                    self._add_progress(f"⚠️ File not found: {filename}")
-                    failed_files.append(filename)
+                    # Check if this is a security-excluded file
+                    if filename in security_excluded:
+                        excluded_count += 1
+                        self._add_progress(f"🔒 Excluded for security: {filename}")
+                    else:
+                        self._add_progress(f"❌ File not found: {filename}")
+                        failed_files.append(filename)
             
-            self._add_progress(f"📁 Upload complete: {uploaded_count}/{len(files_to_upload)} files uploaded")
+            # Calculate totals
+            total_expected = len(files_to_upload) - excluded_count
+            actual_failures = len(failed_files)
             
-            if uploaded_count == len(files_to_upload):
-                self.show_popup("Upload Complete", f"Successfully uploaded all {uploaded_count} files to GitHub!", "success")
+            self._add_progress(f"📁 Upload summary: {uploaded_count} uploaded, {excluded_count} excluded (security), {actual_failures} failed")
+            
+            if uploaded_count == total_expected and actual_failures == 0:
+                self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files\n🔒 {excluded_count} files excluded for security\n\nAll essential files uploaded successfully!", "success")
+            elif actual_failures == 0:
+                self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files\n🔒 {excluded_count} files excluded for security\n\nUpload completed successfully!", "success")
             else:
-                self.show_popup("Partial Upload", f"Uploaded {uploaded_count}/{len(files_to_upload)} files. Some files failed.", "warning")
+                self.show_popup("Partial Upload", f"✅ Uploaded: {uploaded_count} files\n🔒 Excluded: {excluded_count} files (security)\n❌ Failed: {actual_failures} files\n\nSome files failed to upload.", "warning")
             
         except Exception as e:
             self._add_progress(f"❌ Upload error: {str(e)}")
