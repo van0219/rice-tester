@@ -11,6 +11,8 @@ import tkinter as tk
 from tkinter import filedialog
 from database_manager import DatabaseManager
 
+
+
 def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None, db_manager=None):
     """Generate TES-070 from scratch with full control over sections"""
     
@@ -201,28 +203,48 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
             section.left_margin = Inches(1)
             section.right_margin = Inches(1)
         
-        # Add Infor logo to top-left corner
+        # Add Infor logo to top-left corner (1x1 inch)
+        logo_added = False
         try:
-            logo_path = os.path.join(os.path.dirname(__file__), 'infor_logo.png')
-            if os.path.exists(logo_path):
-                logo_paragraph = doc.add_paragraph()
-                logo_run = logo_paragraph.add_run()
-                logo_run.add_picture(logo_path, width=Inches(1), height=Inches(1))
-                logo_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            else:
-                logo_path = os.path.join(os.path.dirname(__file__), 'infor_logo.ico')
+            # Try converted logo first, then original files
+            logo_paths = [
+                os.path.join(os.path.dirname(__file__), 'infor_logo_from_ico.png'),
+                os.path.join(os.path.dirname(__file__), 'infor_logo_fixed.png'),
+                os.path.join(os.path.dirname(__file__), 'infor_logo.png'),
+                os.path.join(os.path.dirname(__file__), 'infor_logo.ico')
+            ]
+            
+            for logo_path in logo_paths:
                 if os.path.exists(logo_path):
-                    logo_paragraph = doc.add_paragraph()
-                    logo_run = logo_paragraph.add_run()
-                    logo_run.add_picture(logo_path, width=Inches(1), height=Inches(1))
-                    logo_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    try:
+                        # Create paragraph for logo at very top of document
+                        logo_paragraph = doc.add_paragraph()
+                        logo_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                        
+                        # Add logo with exact 1x1 inch sizing
+                        logo_run = logo_paragraph.add_run()
+                        logo_run.add_picture(logo_path, width=Inches(1), height=Inches(1))
+                        
+                        # Set paragraph spacing to keep logo at top
+                        logo_paragraph.paragraph_format.space_before = Pt(0)
+                        logo_paragraph.paragraph_format.space_after = Pt(6)
+                        
+                        logo_added = True
+                        break
+                    except Exception as logo_error:
+                        # Try next logo file if this one fails
+                        continue
+                    
         except Exception as e:
-            # If logo file not found or error, continue without it
-            pass
+            # If logo fails to load, continue without it
+            logo_added = False
         
-        # Add title page content - clean and simple
-        doc.add_paragraph()
-        doc.add_paragraph()
+        # Add spacing after logo (or at top if no logo)
+        if logo_added:
+            doc.add_paragraph()  # One line after logo
+        else:
+            doc.add_paragraph()  # Standard top spacing
+            doc.add_paragraph()
         
         title = doc.add_heading('TES-070 CUSTOM EXTENSION UNIT TEST RESULT', 0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -246,15 +268,27 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
         doc_table.cell(2, 1).text = user_full_name
         doc_table.cell(3, 0).text = 'Tenant'
         doc_table.cell(3, 1).text = tenant_name if tenant_name != "Tenant Not Set" else "TAMICS10_AX1"
-        # Get next version number
-        cursor.execute("SELECT COUNT(*) FROM tes070_versions WHERE rice_profile = ?", (rice_profile,))
-        version_count = cursor.fetchone()[0]
-        next_version = f"1.{version_count + 1}"
+        # Get next version number - let database manager handle the logic
+        profile_id_for_versions = rice_profile
+        if isinstance(rice_profile, str) and not rice_profile.isdigit():
+            cursor.execute("SELECT id FROM rice_profiles WHERE rice_id = ?", (rice_profile,))
+            result = cursor.fetchone()
+            if result:
+                profile_id_for_versions = result[0]
+        
+        # Get current versions to determine next version number
+        current_versions = db_manager.get_tes070_versions(profile_id_for_versions)
+        if current_versions:
+            latest_version = current_versions[0][1]  # version_number from first (latest) record
+            next_version_num = latest_version + 1
+        else:
+            next_version_num = 1
+        next_version = f"v{next_version_num}"
         
         doc_table.cell(4, 0).text = 'Version'
-        doc_table.cell(4, 1).text = next_version
+        doc_table.cell(4, 1).text = str(next_version_num)
         doc_table.cell(5, 0).text = 'Date'
-        doc_table.cell(5, 1).text = datetime.now().strftime('%m/%d/%Y')
+        doc_table.cell(5, 1).text = datetime.now().strftime('%m/%d/%Y %I:%M:%S %p')
         doc_table.cell(6, 0).text = 'Document Type'
         doc_table.cell(6, 1).text = 'Test Execution Summary (TES-070)'
         
@@ -274,8 +308,8 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
         change_table.cell(0, 3).text = 'Description'
         
         # Data
-        change_table.cell(1, 0).text = next_version
-        change_table.cell(1, 1).text = datetime.now().strftime('%m/%d/%Y')
+        change_table.cell(1, 0).text = str(next_version_num)
+        change_table.cell(1, 1).text = datetime.now().strftime('%m/%d/%Y %I:%M:%S %p')
         change_table.cell(1, 2).text = user_full_name
         change_table.cell(1, 3).text = 'Latest Automated Run'
         
@@ -330,7 +364,17 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
             
             # Get steps from database
             cursor.execute("""
-                SELECT ss.step_order, ss.step_description, ss.screenshot_after, COALESCE(ts.step_type, ss.step_type)
+                SELECT ss.step_order, 
+                       CASE 
+                           WHEN LOWER(COALESCE(ts.step_type, ss.step_type)) LIKE '%input%' 
+                                AND (LOWER(ss.step_description) LIKE '%password%' 
+                                     OR LOWER(ts.description) LIKE '%password%'
+                                     OR LOWER(ts.name) LIKE '%password%')
+                           THEN 'Password'
+                           ELSE ss.step_description
+                       END as step_description,
+                       ss.screenshot_after, 
+                       COALESCE(ts.step_type, ss.step_type)
                 FROM scenario_steps ss
                 LEFT JOIN test_steps ts ON ss.test_step_id = ts.id
                 WHERE ss.rice_profile = ? AND ss.scenario_number = ?
@@ -341,7 +385,17 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
             
             if not steps_data and rice_data:
                 cursor.execute("""
-                    SELECT ss.step_order, ss.step_description, ss.screenshot_after, COALESCE(ts.step_type, ss.step_type)
+                    SELECT ss.step_order, 
+                           CASE 
+                               WHEN LOWER(COALESCE(ts.step_type, ss.step_type)) LIKE '%input%' 
+                                    AND (LOWER(ss.step_description) LIKE '%password%' 
+                                         OR LOWER(ts.description) LIKE '%password%'
+                                         OR LOWER(ts.name) LIKE '%password%')
+                               THEN 'Password'
+                               ELSE ss.step_description
+                           END as step_description,
+                           ss.screenshot_after, 
+                           COALESCE(ts.step_type, ss.step_type)
                     FROM scenario_steps ss
                     LEFT JOIN test_steps ts ON ss.test_step_id = ts.id
                     WHERE ss.rice_profile = ? AND ss.scenario_number = ?
@@ -364,13 +418,19 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
                             if step_type and step_type.strip():
                                 step_type_lower = step_type.lower()
                                 if 'navigate' in step_type_lower:
-                                    formatted_desc = f"Navigate to {step_desc}"
+                                    if step_desc.lower().startswith('navigate to '):
+                                        formatted_desc = step_desc
+                                    else:
+                                        formatted_desc = f"Navigate to {step_desc}"
                                 elif 'click' in step_type_lower:
-                                    formatted_desc = f"Click {step_desc}"
+                                    if step_desc.lower().startswith('click '):
+                                        formatted_desc = step_desc
+                                    else:
+                                        formatted_desc = f"Click {step_desc}"
                                 elif 'input' in step_type_lower or 'text' in step_type_lower:
                                     if 'workunit' in step_desc.lower() or 'work unit' in step_desc.lower():
                                         formatted_desc = "Enter Workunit"
-                                    elif any(pwd_indicator in step_desc.lower() for pwd_indicator in ['password']):
+                                    elif step_desc.lower() == 'password':
                                         formatted_desc = "Enter password"
                                     elif '@' in step_desc and '.' in step_desc and ' ' not in step_desc.strip():
                                         formatted_desc = f"Enter username: {step_desc}"
@@ -383,14 +443,20 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
                             else:
                                 # Fallback: analyze step description content
                                 if 'navigate' in step_lower or 'page' in step_lower:
-                                    formatted_desc = f"Navigate to {step_desc}"
+                                    if step_desc.lower().startswith('navigate to '):
+                                        formatted_desc = step_desc
+                                    else:
+                                        formatted_desc = f"Navigate to {step_desc}"
                                 elif 'click' in step_lower or 'button' in step_lower:
-                                    formatted_desc = f"Click {step_desc}"
+                                    if step_desc.lower().startswith('click '):
+                                        formatted_desc = step_desc
+                                    else:
+                                        formatted_desc = f"Click {step_desc}"
                                 elif '@' in step_desc and '.' in step_desc and ' ' not in step_desc.strip():
                                     formatted_desc = f"Enter username: {step_desc}"
                                 elif 'workunit' in step_lower or 'work unit' in step_lower:
                                     formatted_desc = "Enter Workunit"
-                                elif any(pwd_indicator in step_lower for pwd_indicator in ['password', '$']) and ' ' not in step_desc.strip():
+                                elif step_desc.lower() == 'password':
                                     formatted_desc = "Enter password"
                                 elif len(step_desc.strip()) < 10 and not any(action in step_lower for action in ['navigate', 'click', 'select']):
                                     formatted_desc = f"Enter {step_desc}"
@@ -549,7 +615,7 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
         env_table.cell(4, 0).text = 'Browser'
         env_table.cell(4, 1).text = 'Google Chrome (Latest Version)'
         env_table.cell(5, 0).text = 'Test Execution Date'
-        env_table.cell(5, 1).text = datetime.now().strftime('%m/%d/%Y')
+        env_table.cell(5, 1).text = datetime.now().strftime('%m/%d/%Y %I:%M:%S %p')
         env_table.cell(6, 0).text = 'Test Executor'
         env_table.cell(6, 1).text = user_full_name
         env_table.cell(7, 0).text = 'Total Test Duration'
@@ -574,6 +640,7 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
             # Get step count for this scenario
             cursor.execute("""
                 SELECT COUNT(*) FROM scenario_steps ss
+                LEFT JOIN test_steps ts ON ss.test_step_id = ts.id
                 WHERE ss.rice_profile = ? AND ss.scenario_number = ?
             """, (str(rice_prof), scenario_num))
             step_count = cursor.fetchone()[0] or 0
@@ -582,7 +649,7 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
             data_table.cell(i, 1).text = description[:50] + ('...' if len(description) > 50 else '')
             data_table.cell(i, 2).text = result
             data_table.cell(i, 3).text = executed_at or 'Not recorded'
-            data_table.cell(i, 4).text = str(step_count)
+            data_table.cell(i, 4).text = f"{step_count} (including wait steps)"
         
         doc.add_paragraph()
         
@@ -611,12 +678,12 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
                 buffer.seek(0)
                 file_content = buffer.getvalue()
                 
-                # Save to database using provided db_manager
+                # Save to database using provided db_manager with profile ID
                 user_name = current_user.get('full_name', 'Current User') if current_user else 'Current User'
-                version_id = db_manager.save_tes070_version(rice_profile, file_content, user_name)
+                version_id = db_manager.save_tes070_version(profile_id_for_versions, file_content, user_name)
                 
                 if show_popup:
-                    show_popup("Success", f"TES-070 report generated from scratch and saved to database!\n\nVersion ID: {version_id}\nUse TES-070 History to download.", "success")
+                    show_popup("Success", f"TES-070 report generated from scratch and saved to database!\n\nVersion: {next_version}\nUse TES-070 History to download.", "success")
                     
             except Exception as e:
                 if show_popup:
