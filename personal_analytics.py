@@ -11,7 +11,7 @@ import pandas as pd
 try:
     from enhanced_popup_system import create_enhanced_dialog
 except ImportError:
-    from Temp.enhanced_popup_system import create_enhanced_dialog
+    from enhanced_popup_system import create_enhanced_dialog
 
 class PersonalAnalytics:
     """
