@@ -313,8 +313,9 @@ class RiceManager:
         # Get the RICE ID from current profile (current_profile contains the rice_id)
         rice_id = self.data_manager.current_profile
         
-        # Get TES-070 versions from database for this specific RICE
-        versions = self.db_manager.get_tes070_versions(rice_id)
+        # Get TES-070 versions from database for this specific RICE (latest 5 only)
+        all_versions = self.db_manager.get_tes070_versions(rice_id)
+        versions = all_versions[:5]  # Limit to latest 5 versions
         
         if not versions:
             self.show_popup("No History", "No TES-070 versions found for this RICE profile.", "warning")
@@ -372,9 +373,21 @@ class RiceManager:
             
             from datetime import datetime
             try:
-                date_obj = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                formatted_date = date_obj.strftime('%m/%d/%Y %I:%M %p')
-            except:
+                # Debug: Print raw timestamp to see format
+                print(f"Raw timestamp from DB: '{created_at}'")
+                
+                # Handle different timestamp formats from database
+                if 'T' in created_at:
+                    # ISO format with T separator
+                    date_obj = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                else:
+                    # SQLite CURRENT_TIMESTAMP format: YYYY-MM-DD HH:MM:SS
+                    date_obj = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                formatted_date = date_obj.strftime('%m/%d/%Y %I:%M:%S %p')
+                print(f"Formatted date: '{formatted_date}'")
+            except Exception as e:
+                print(f"Date parsing error: {e}")
+                # Fallback to original timestamp if parsing fails
                 formatted_date = created_at
             
             tk.Label(row_frame, text=formatted_date, font=('Segoe UI', 9), 
