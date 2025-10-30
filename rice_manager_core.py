@@ -300,9 +300,9 @@ class RiceManager:
             except Exception:
                 current_user = {'full_name': 'Unknown User', 'username': 'user'}
         
-        # Import and use TES-070 generator
-        from tes070_generator import generate_tes070_report
-        generate_tes070_report(self.data_manager.current_profile, self.show_popup, current_user, self.db_manager)
+        # Import and use TES-070 from-scratch generator (per requirements)
+        from tes070_generator_new import create_tes070_from_scratch
+        create_tes070_from_scratch(self.data_manager.current_profile, self.show_popup, current_user, self.db_manager)
     
     def show_tes070_history(self):
         """Show TES-070 history for selected RICE profile"""
@@ -322,7 +322,7 @@ class RiceManager:
         
         # Create history dialog
         from rice_dialogs import create_enhanced_dialog
-        history_popup = create_enhanced_dialog(None, "TES-070 History", 628, 500, modal=False)
+        history_popup = create_enhanced_dialog(None, "TES-070 History", 628, 446, modal=False)
         history_popup.configure(bg='#ffffff')
         
         try:
