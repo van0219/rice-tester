@@ -744,12 +744,20 @@ Do you want to proceed with the update check?"""
     
     def show_github_integration(self):
         """Show GitHub CI/CD integration - Restricted Access"""
-        # Security: Restrict to authorized users only
+        # 🚨 ENHANCED SECURITY: Multi-layer authorization check
         authorized_users = ['vansilleza_fpi', 'van_silleza', 'admin']
         current_username = self.user.get('username', '').lower()
+        current_user_id = self.user.get('id', 0)
         
+        # Primary check: Username must be in authorized list
         if current_username not in authorized_users:
             self.show_popup("Access Restricted", "GitHub Integration is restricted to authorized users only.\n\nThis feature manages CI/CD pipelines and repository access.", "warning")
+            return
+        
+        # 🚨 SECONDARY SECURITY: Verify user is original account (ID 1-3 reserved for Van)
+        # This prevents newly created accounts with same usernames from accessing
+        if current_user_id > 3:
+            self.show_popup("Access Restricted", "GitHub Integration access denied.\n\nThis feature is restricted to original system administrators only.", "warning")
             return
         
         try:
