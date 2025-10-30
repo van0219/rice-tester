@@ -206,7 +206,7 @@ class SeleniumInboundTester:
         # Pass responsive config to all managers
         for manager in [self.rice_manager, self.config_manager, self.sftp_manager, 
                        self.test_steps_manager, self.test_users_manager, self.service_accounts_manager]:
-            if hasattr(manager, 'set_responsive_config'):
+            if manager and hasattr(manager, 'set_responsive_config'):
                 manager.set_responsive_config(self.responsive_config)
         
         # Setup tabs
