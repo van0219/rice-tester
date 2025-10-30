@@ -29,7 +29,7 @@ class ScenarioEditForm:
             scenario_number, description, file_path, auto_login = scenario_data
             
             # Create edit dialog with initial size based on auto_login
-            from Temp.enhanced_popup_system import create_enhanced_dialog
+            from enhanced_popup_system import create_enhanced_dialog
             
             # Set initial size based on auto_login status
             if auto_login:
@@ -422,7 +422,7 @@ class ScenarioEditForm:
                     return
                 
                 # Create selection dialog
-                from Temp.enhanced_popup_system import create_enhanced_dialog
+                from enhanced_popup_system import create_enhanced_dialog
                 select_popup = create_enhanced_dialog(popup, "Add Steps from Test Groups", 600, 500, modal=False)
                 select_popup.configure(bg='#ffffff')
                 select_popup.attributes('-topmost', False)
@@ -535,7 +535,7 @@ class ScenarioEditForm:
                 steps_listbox.config(selectmode=tk.MULTIPLE)
                 
                 # Create selection dialog
-                from Temp.enhanced_popup_system import create_enhanced_dialog
+                from enhanced_popup_system import create_enhanced_dialog
                 select_popup = create_enhanced_dialog(popup, "Remove Multiple Steps", 644, 400, modal=False)
                 select_popup.configure(bg='#ffffff')
                 
