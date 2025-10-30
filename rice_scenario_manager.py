@@ -450,19 +450,23 @@ class ScenarioManager:
         pagination_frame = tk.Frame(frame, bg='#ffffff')
         pagination_frame.pack(fill='x', pady=(10, 20))
         
+        # Center container for pagination
+        pagination_container = tk.Frame(pagination_frame, bg='#ffffff')
+        pagination_container.pack(expand=True)
+        
         # Previous button
-        prev_btn = tk.Button(pagination_frame, text="◀ Previous", font=('Segoe UI', 9), 
+        prev_btn = tk.Button(pagination_container, text="◀ Previous", font=('Segoe UI', 9), 
                             bg='#6b7280', fg='#ffffff', relief='flat', padx=10, pady=4, 
                             cursor='hand2', bd=0, command=prev_page)
         prev_btn.pack(side='left')
         
         # Page info
-        page_label = tk.Label(pagination_frame, text="Page 1 of 1 (0 steps total)", 
+        page_label = tk.Label(pagination_container, text="Page 1 of 1 (0 steps total)", 
                              font=('Segoe UI', 9), bg='#ffffff', fg='#374151')
         page_label.pack(side='left', padx=20)
         
         # Next button
-        next_btn = tk.Button(pagination_frame, text="Next ▶", font=('Segoe UI', 9), 
+        next_btn = tk.Button(pagination_container, text="Next ▶", font=('Segoe UI', 9), 
                             bg='#6b7280', fg='#ffffff', relief='flat', padx=10, pady=4, 
                             cursor='hand2', bd=0, command=next_page)
         next_btn.pack(side='left')
@@ -474,17 +478,15 @@ class ScenarioManager:
         action_frame = tk.Frame(frame, bg='#ffffff')
         action_frame.pack(fill="x", pady=(10, 0))
         
-        # Generate documentation button
-        try:
-            from auto_documentation import add_documentation_button_to_scenario
-            doc_btn = add_documentation_button_to_scenario(action_frame, scenario_id, current_profile, self.db_manager, self.show_popup)
-            doc_btn.pack(side="left", padx=(0, 10))
-        except ImportError:
-            pass
+        # Center container for buttons
+        button_container = tk.Frame(action_frame, bg='#ffffff')
+        button_container.pack(expand=True)
         
-        # Close button
-        tk.Button(action_frame, text="Close", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=20, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack(side="left")
+        # Note: Generate Docs button removed - use main TES-070 generation instead
+        
+        # Close button (centered)
+        tk.Button(button_container, text="Close", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
+                 relief='flat', padx=20, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack()
     
     def _add_tooltip(self, widget, text):
         """Add hover tooltip to widget for long text content"""
