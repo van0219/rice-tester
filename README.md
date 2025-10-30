@@ -52,57 +52,14 @@ A comprehensive enterprise-grade GUI application for testing FSM interfaces with
 3. **Launch Browser**: Full browser automation with FSM login
 4. **SFTP Testing**: Validate connection and directory access
 
-## Database Schema
-
-### Users Table
-```sql
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    email TEXT,
-    company TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Profiles Table (RICE Configurations)
-```sql
-CREATE TABLE profiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    profile_name TEXT NOT NULL,
-    client_name TEXT,
-    sftp_host TEXT,
-    sftp_port INTEGER DEFAULT 22,
-    sftp_username TEXT,
-    sftp_password TEXT,
-    sftp_directory TEXT,
-    channel_name TEXT,
-    browser_type TEXT DEFAULT 'edge',
-    fsm_url TEXT,
-    fsm_username TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users (id),
-    UNIQUE(user_id, profile_name)
-);
-```
-
-### Scenarios Table
-```sql
-CREATE TABLE scenarios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    rice_profile TEXT NOT NULL,
-    scenario_number INTEGER NOT NULL,
-    description TEXT NOT NULL,
-    file_path TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users (id),
-    UNIQUE(user_id, rice_profile, scenario_number)
-);
-```
+## Database Features
+- ✅ **Secure Authentication**: Hashed passwords with SHA256 encryption
+- ✅ **Multi-User Support**: Complete user isolation and profile separation
+- ✅ **RICE Management**: Configuration storage and scenario tracking
+- ✅ **Performance Analytics**: Individual insights and achievement tracking
+- ✅ **Auto-Migration**: Database schema updates handled automatically
+- ✅ **Data Integrity**: Foreign key constraints and validation
+- ✅ **Encrypted Storage**: Sensitive credentials protected with encryption
 
 ## Application Architecture
 
