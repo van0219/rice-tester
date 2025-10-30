@@ -11,16 +11,18 @@ import zipfile
 import shutil
 from datetime import datetime
 try:
-    from enhanced_popup_system import create_enhanced_dialog
+    from enhanced_popup_system import create_enhanced_dialog, create_enhanced_popup
 except ImportError:
     try:
-        from Temp.enhanced_popup_system import create_enhanced_dialog
+        from enhanced_popup_system import create_enhanced_dialog, create_enhanced_popup
     except ImportError:
         def create_enhanced_dialog(parent, title, width, height, modal=True):
             dialog = tk.Toplevel(parent)
             dialog.title(title)
             dialog.geometry(f"{width}x{height}")
             return dialog
+        def create_enhanced_popup(parent, title, message, status, modal=False):
+            messagebox.showinfo(title, message)
 
 class GitHubIntegrationManager:
     """
@@ -28,9 +30,9 @@ class GitHubIntegrationManager:
     Secure access control - Only accessible to vansilleza_fpi
     """
     
-    def __init__(self, db_manager, show_popup_callback):
+    def __init__(self, db_manager, show_popup_callback=None):
         self.db_manager = db_manager
-        self.show_popup = show_popup_callback
+        self.show_popup = show_popup_callback or self._show_enhanced_popup
         self.github_token = None
         self.github_username = None
         self.repo_name = None
@@ -38,12 +40,100 @@ class GitHubIntegrationManager:
         # Try to load saved credentials
         self._load_github_credentials()
     
+    def _show_enhanced_popup(self, title, message, status):
+        """Show enhanced popup with dynamic sizing"""
+        create_enhanced_popup(None, title, message, status, modal=False)
+    
     def show_github_integration_dialog(self):
         """Show GitHub integration panel with login and management"""
         
-        panel = create_enhanced_dialog(None, "🐙 GitHub Integration - RICE Tester CI/CD", 900, 736, modal=False)
+        # Show loading screen first
+        loading_screen = self._create_loading_screen()
+        
+        # Create main panel after short delay
+        def create_main_panel():
+            loading_screen.destroy()
+            self._create_main_panel()
+        
+        loading_screen.after(2500, create_main_panel)  # Show loading for 2.5 seconds
+    
+    def _create_loading_screen(self):
+        """Create animated loading screen popup"""
+        loading = tk.Toplevel()
+        loading.title("🔍 Loading GitHub Integration")
+        loading.geometry("400x250")
+        loading.configure(bg='#ffffff')
+        loading.resizable(False, False)
+        
+        # Center on screen
+        loading.update_idletasks()
+        x = (loading.winfo_screenwidth() // 2) - 200
+        y = (loading.winfo_screenheight() // 2) - 125
+        loading.geometry(f"400x250+{x}+{y}")
+        
+        try:
+            loading.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Header
+        header_frame = tk.Frame(loading, bg='#3b82f6', height=60)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text="🐙 GitHub Integration", 
+                font=('Segoe UI', 14, 'bold'), bg='#3b82f6', fg='#ffffff').pack(expand=True)
+        
+        # Content
+        content_frame = tk.Frame(loading, bg='#ffffff', padx=30, pady=30)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Loading message
+        loading_label = tk.Label(content_frame, text="Loading GitHub Integration Manager...", 
+                                font=('Segoe UI', 12), bg='#ffffff', fg='#374151')
+        loading_label.pack(pady=(0, 20))
+        
+        # Animated dots
+        dots_label = tk.Label(content_frame, text="●○○", 
+                             font=('Segoe UI', 16), bg='#ffffff', fg='#3b82f6')
+        dots_label.pack(pady=(0, 20))
+        
+        # Status text
+        status_label = tk.Label(content_frame, text="Initializing...", 
+                               font=('Segoe UI', 10), bg='#ffffff', fg='#6b7280')
+        status_label.pack()
+        
+        # Animate the loading
+        self.loading_step = 0
+        self.animate_loading_screen(loading, dots_label, status_label)
+        
+        return loading
+    
+    def animate_loading_screen(self, loading, dots_label, status_label):
+        """Animate the loading screen"""
+        if not loading.winfo_exists():
+            return
+        
+        dot_patterns = ["●○○", "○●○", "○○●", "●●○", "●●●"]
+        status_messages = [
+            "Initializing...",
+            "Connecting to GitHub...",
+            "Loading repository data...",
+            "Checking status...",
+            "Almost ready..."
+        ]
+        
+        if self.loading_step < len(dot_patterns):
+            dots_label.config(text=dot_patterns[self.loading_step])
+            status_label.config(text=status_messages[self.loading_step])
+            self.loading_step += 1
+            loading.after(500, lambda: self.animate_loading_screen(loading, dots_label, status_label))
+    
+    def _create_main_panel(self):
+        """Create the main GitHub integration panel"""
+        panel = create_enhanced_dialog(None, "🐙 GitHub Integration - RICE Tester CI/CD", 900, 808, modal=False)
         panel.resizable(False, False)
-        panel.maxsize(900, 736)
+        panel.maxsize(900, 808)
         
         try:
             panel.iconbitmap("infor_logo.ico")
@@ -189,8 +279,17 @@ class GitHubIntegrationManager:
         tk.Label(status_frame, text="✅ Connected to GitHub", font=('Segoe UI', 14, 'bold'), 
                 bg='#d1ecf1', fg='#0c5460').pack(anchor="w")
         
-        tk.Label(status_frame, text=f"Username: {self.github_username}", font=('Segoe UI', 10), 
-                bg='#d1ecf1', fg='#0c5460').pack(anchor="w", pady=(5, 0))
+        account_info_frame = tk.Frame(status_frame, bg='#d1ecf1')
+        account_info_frame.pack(fill="x", pady=(5, 0))
+        
+        tk.Label(account_info_frame, text=f"Username: {self.github_username}", font=('Segoe UI', 10), 
+                bg='#d1ecf1', fg='#0c5460').pack(side="left")
+        
+        # Switch Account button
+        switch_btn = tk.Button(account_info_frame, text="🔄 Switch Account", font=('Segoe UI', 9, 'bold'), 
+                              bg='#dc3545', fg='#ffffff', relief='flat', padx=10, pady=4, 
+                              cursor='hand2', bd=0, command=self._switch_github_account)
+        switch_btn.pack(side="right")
         
         # Repository management
         repo_frame = tk.Frame(parent, bg='#ffffff')
@@ -285,8 +384,102 @@ class GitHubIntegrationManager:
                                     bg='#ffffff', relief='solid', bd=1, wrap=tk.WORD, state=tk.DISABLED)
         self.progress_text.pack(fill="x")
         
-        self._add_progress("Ready to set up GitHub CI/CD for RICE Tester...")
-        self._add_progress("Click the buttons above in order: 1️⃣ → 2️⃣ → 3️⃣ → 4️⃣")
+        # Show loading screen and check status asynchronously
+        self._show_loading_screen()
+        # Schedule status check after loading animation
+        self.progress_text.after(2000, self._check_and_show_status)
+    
+    def _show_loading_screen(self):
+        """Show animated loading screen while checking status"""
+        self._add_progress("🔍 Checking repository status")
+        self.loading_dots = 0
+        self._animate_loading()
+    
+    def _animate_loading(self):
+        """Animate loading dots"""
+        if hasattr(self, 'loading_dots') and self.loading_dots < 15:  # Stop after 4.5 seconds
+            dots = "●" * (self.loading_dots % 3 + 1) + "○" * (2 - self.loading_dots % 3)
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            
+            # Update the last line with animated dots
+            self.progress_text.config(state=tk.NORMAL)
+            # Remove last line and add new one with animation
+            self.progress_text.delete("end-2l", "end-1l")
+            self.progress_text.insert(tk.END, f"[{timestamp}] 🔍 Checking repository status {dots}\n")
+            self.progress_text.config(state=tk.DISABLED)
+            self.progress_text.see(tk.END)
+            
+            self.loading_dots += 1
+            self.progress_text.after(300, self._animate_loading)
+    
+    def _check_and_show_status(self):
+        """Check repository status and show intelligent progress messages"""
+        # Clear loading animation
+        if hasattr(self, 'loading_dots'):
+            del self.loading_dots
+        
+        repo_name = self.repo_entry.get().strip()
+        if not repo_name:
+            self._add_progress("Ready to set up GitHub CI/CD for RICE Tester...")
+            self._add_progress("Enter repository name and click buttons in order: 1️⃣ → 2️⃣ → 3️⃣ → 4️⃣")
+            return
+        
+        try:
+            headers = {
+                'Authorization': f'token {self.github_token}',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+            
+            # Check repository exists
+            repo_exists = self._check_repository_exists(repo_name)
+            if repo_exists:
+                self._add_progress("✅ Repository exists and accessible")
+                
+                # Check if files are uploaded (check for key files)
+                key_files = ['RICE_Tester.py', 'requirements.txt', 'version.json']
+                files_uploaded = 0
+                for filename in key_files:
+                    url = f'https://api.github.com/repos/{self.github_username}/{repo_name}/contents/{filename}'
+                    response = requests.get(url, headers=headers, timeout=3)
+                    if response.status_code == 200:
+                        files_uploaded += 1
+                
+                if files_uploaded == len(key_files):
+                    self._add_progress("✅ RICE Tester files uploaded")
+                    
+                    # Check CI/CD pipeline
+                    cicd_url = f'https://api.github.com/repos/{self.github_username}/{repo_name}/contents/.github/workflows/rice-tester-ci.yml'
+                    cicd_response = requests.get(cicd_url, headers=headers, timeout=3)
+                    if cicd_response.status_code == 200:
+                        self._add_progress("✅ CI/CD pipeline configured")
+                    else:
+                        self._add_progress("⚠️ CI/CD pipeline not found - use Step 3️⃣")
+                    
+                    # Check releases
+                    releases_url = f'https://api.github.com/repos/{self.github_username}/{repo_name}/releases'
+                    releases_response = requests.get(releases_url, headers=headers, timeout=3)
+                    if releases_response.status_code == 200:
+                        releases = releases_response.json()
+                        if releases:
+                            latest_release = releases[0]['tag_name']
+                            self._add_progress(f"✅ {len(releases)} releases found (latest: {latest_release})")
+                            self._add_progress("🚀 Ready to create new release with Step 4️⃣")
+                        else:
+                            self._add_progress("⚠️ No releases found - use Step 4️⃣ to create first release")
+                    
+                elif files_uploaded > 0:
+                    self._add_progress(f"⚠️ Partial upload detected ({files_uploaded}/{len(key_files)} key files)")
+                    self._add_progress("Use Step 2️⃣ to complete file upload")
+                else:
+                    self._add_progress("⚠️ No RICE Tester files found - use Step 2️⃣ to upload")
+                    
+            else:
+                self._add_progress("⚠️ Repository not found or inaccessible")
+                self._add_progress("Use Step 1️⃣ to create repository first")
+                
+        except Exception as e:
+            self._add_progress("ℹ️ Status check failed - proceeding with setup")
+            self._add_progress("Click buttons in order: 1️⃣ → 2️⃣ → 3️⃣ → 4️⃣")
     
     def _add_progress(self, message):
         """Add message to progress log"""
@@ -372,9 +565,17 @@ class GitHubIntegrationManager:
             return
         
         self.repo_name = repo_name
-        self._add_progress("Uploading RICE Tester code...")
+        self._add_progress("Starting upload process...")
         
+        # Run upload in background thread to prevent UI freezing
+        import threading
+        upload_thread = threading.Thread(target=self._perform_upload, daemon=True)
+        upload_thread.start()
+    
+    def _perform_upload(self):
+        """Perform the actual upload in background thread"""
         try:
+            self._add_progress("Preparing file list...")
             # Get current RICE Tester directory
             rice_dir = os.path.dirname(os.path.abspath(__file__))
             
@@ -400,28 +601,39 @@ class GitHubIntegrationManager:
             # Security-excluded files (expected to be missing)
             security_excluded = ['github_config.json', 'updater_config.json']
             
-            for filename in files_to_upload:
+            total_files = len(files_to_upload)
+            for i, filename in enumerate(files_to_upload, 1):
                 file_path = os.path.join(rice_dir, filename)
                 
                 if os.path.exists(file_path):
                     try:
+                        self._add_progress(f"📤 Uploading {filename} ({i}/{total_files})...")
+                        
                         with open(file_path, 'rb') as f:
                             content = base64.b64encode(f.read()).decode('utf-8')
                         
                         url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/{filename}'
                         
+                        # Check if file already exists and get its SHA
+                        existing_response = requests.get(url, headers=headers, timeout=10)
+                        
                         data = {
-                            'message': f'Add {filename}',
+                            'message': f'Update {filename}' if existing_response.status_code == 200 else f'Add {filename}',
                             'content': content
                         }
+                        
+                        # If file exists, include SHA for update
+                        if existing_response.status_code == 200:
+                            existing_data = existing_response.json()
+                            data['sha'] = existing_data['sha']
                         
                         response = requests.put(url, headers=headers, json=data, timeout=30)
                         
                         if response.status_code in [200, 201]:
                             uploaded_count += 1
-                            self._add_progress(f"✅ Uploaded {filename}")
+                            self._add_progress(f"✅ Uploaded {filename} ({i}/{total_files})")
                         else:
-                            self._add_progress(f"⚠️ Failed to upload {filename}")
+                            self._add_progress(f"⚠️ Failed to upload {filename} - Status: {response.status_code}")
                             failed_files.append(filename)
                     
                     except Exception as e:
@@ -447,11 +659,19 @@ class GitHubIntegrationManager:
             elif actual_failures == 0:
                 self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files\n🔒 {excluded_count} files excluded for security\n\nUpload completed successfully!", "success")
             else:
-                self.show_popup("Partial Upload", f"✅ Uploaded: {uploaded_count} files\n🔒 Excluded: {excluded_count} files (security)\n❌ Failed: {actual_failures} files\n\nSome files failed to upload.", "warning")
+                # Show only actual failures, not security exclusions
+                real_failures = [f for f in failed_files if f not in security_excluded]
+                if real_failures:
+                    self.show_popup("Partial Upload", f"✅ Uploaded: {uploaded_count} files\n🔒 Excluded: {excluded_count} files (security)\n❌ Failed: {len(real_failures)} files\n\nFailed files: {', '.join(real_failures)}", "warning")
+                else:
+                    self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files\n🔒 {excluded_count} files excluded for security\n\nAll essential files uploaded successfully!", "success")
             
         except Exception as e:
             self._add_progress(f"❌ Upload error: {str(e)}")
-            self.show_popup("Upload Error", f"Error uploading files: {str(e)}", "error")
+            # Use thread-safe popup call
+            import tkinter as tk
+            if hasattr(self, 'progress_text') and self.progress_text.winfo_exists():
+                self.progress_text.after(0, lambda: self.show_popup("Upload Error", f"Error uploading files: {str(e)}", "error"))
     
     def _setup_cicd(self):
         """Setup CI/CD pipeline"""
@@ -673,6 +893,31 @@ class GitHubIntegrationManager:
                 
         except Exception as e:
             print(f"Failed to save updater config: {e}")
+    
+    def _switch_github_account(self):
+        """Switch to a different GitHub account"""
+        # Clear current credentials
+        self.github_token = None
+        self.github_username = None
+        self.repo_name = None
+        
+        # Remove saved credentials
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), 'github_config.json')
+            if os.path.exists(config_path):
+                os.remove(config_path)
+        except Exception:
+            pass
+        
+        # Show confirmation and refresh interface
+        self.show_popup("Account Switched", "GitHub account disconnected. Please enter new credentials.", "success")
+        
+        # Find the main frame and refresh interface
+        for widget in self.token_entry.master.master.winfo_children() if hasattr(self, 'token_entry') else []:
+            widget.destroy()
+        
+        # Show login interface again
+        self.show_github_integration_dialog()
     
     def _copy_release_url(self):
         """Copy release URL to clipboard"""
