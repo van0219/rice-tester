@@ -337,6 +337,33 @@ class DatabaseManager:
         except Exception:
             pass  # Column already exists
         
+        # 🛡️ SECURITY: Create database trigger to block restricted usernames
+        # Recreate trigger every time to prevent tampering
+        cursor.execute("DROP TRIGGER IF EXISTS block_restricted_usernames")
+        cursor.execute("""
+            CREATE TRIGGER block_restricted_usernames
+            BEFORE INSERT ON users
+            FOR EACH ROW
+            WHEN LOWER(NEW.username) IN ('vansilleza_fpi', 'van_silleza', 'admin', 'administrator', 'root', 'system')
+            BEGIN
+                SELECT RAISE(ABORT, 'Username is reserved for system administrators');
+            END
+        """)
+        
+        # 🛡️ SECURITY: Also block updates to restricted usernames  
+        # Recreate trigger every time to prevent tampering
+        cursor.execute("DROP TRIGGER IF EXISTS block_restricted_username_updates")
+        cursor.execute("""
+            CREATE TRIGGER block_restricted_username_updates
+            BEFORE UPDATE ON users
+            FOR EACH ROW
+            WHEN LOWER(NEW.username) IN ('vansilleza_fpi', 'van_silleza', 'admin', 'administrator', 'root', 'system')
+            AND NEW.id > 3
+            BEGIN
+                SELECT RAISE(ABORT, 'Username is reserved for system administrators');
+            END
+        """)
+        
         self.conn.commit()
     
     def hash_password_reversible(self, password):
