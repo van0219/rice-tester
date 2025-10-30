@@ -83,8 +83,9 @@ class ServiceAccountsManager:
         except:
             self.template_var.set("TES-070_{rice_id}_{date}_v{version}.docx")
         
-        template_entry = tk.Entry(self.tes070_config_frame, textvariable=self.template_var, width=60, font=('Segoe UI', 10))
-        template_entry.pack(fill="x", pady=(0, 10))
+        self.template_entry = tk.Entry(self.tes070_config_frame, textvariable=self.template_var, width=60, font=('Segoe UI', 10),
+                                      state='readonly', bg='#f3f4f6', fg='#6b7280')
+        self.template_entry.pack(fill="x", pady=(0, 10))
         
         # Available placeholders help
         self.help_frame = tk.Frame(self.tes070_config_frame, bg='#e0f2fe', relief='solid', bd=1)
@@ -95,18 +96,21 @@ class ServiceAccountsManager:
         tk.Label(self.help_frame, text=placeholders, font=('Segoe UI', 9), bg='#e0f2fe', fg='#0369a1').pack(anchor="w", padx=10, pady=(0, 5))
         
         # Save button
-        save_btn = tk.Button(self.tes070_config_frame, text="💾 Save Template", font=('Segoe UI', 10, 'bold'), 
-                            bg='#10b981', fg='#ffffff', relief='flat', padx=15, pady=8, 
-                            cursor='hand2', bd=0, command=self._save_tes070_template)
-        save_btn.pack(anchor="w", pady=(0, 10))
+        self.save_btn = tk.Button(self.tes070_config_frame, text="💾 Save Template", font=('Segoe UI', 10, 'bold'), 
+                                 bg='#10b981', fg='#ffffff', relief='flat', padx=15, pady=8, 
+                                 cursor='hand2', bd=0, command=self._save_tes070_template)
+        self.save_btn.pack(anchor="w", pady=(0, 10))
         
 
     
     def _toggle_tes070_format(self):
-        """Toggle TES-070 format configuration visibility"""
-        # Configuration frame is always visible now
-        # This method kept for checkbox functionality but doesn't hide/show frame
-        pass
+        """Toggle TES-070 template field editability"""
+        if self.tes070_format_var.get():
+            # Checkbox checked - make editable
+            self.template_entry.config(state='normal', bg='#ffffff', fg='#000000')
+        else:
+            # Checkbox unchecked - make readonly
+            self.template_entry.config(state='readonly', bg='#f3f4f6', fg='#6b7280')
     
     def _save_tes070_template(self):
         """Save TES-070 name format template"""
@@ -120,8 +124,9 @@ class ServiceAccountsManager:
             # Save to database
             self.db_manager.save_tes070_template(template)
             
-            # Reset checkbox only (configuration stays visible)
+            # Reset checkbox and make field readonly
             self.tes070_format_var.set(False)
+            self.template_entry.config(state='readonly', bg='#f3f4f6', fg='#6b7280')
             
             self.show_popup("Success", "TES-070 name format template saved successfully!", "success")
             
