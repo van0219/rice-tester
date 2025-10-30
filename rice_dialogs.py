@@ -3,7 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from Temp.enhanced_popup_system import enhanced_center_dialog, create_enhanced_dialog
+from enhanced_popup_system import enhanced_center_dialog, create_enhanced_dialog
 
 def center_dialog(dialog, width=None, height=None):
     """Enhanced center dialog that doesn't hide existing forms"""
