@@ -579,15 +579,28 @@ class GitHubIntegrationManager:
             # Get current RICE Tester directory
             rice_dir = os.path.dirname(os.path.abspath(__file__))
             
-            # Core files to upload (including security files in list for proper counting)
-            files_to_upload = [
-                'RICE_Tester.py', 'SeleniumInboundTester_Lite.py', 'database_manager.py',
-                'rice_manager.py', 'rice_scenario_manager.py', 'personal_analytics.py',
-                'tes070_generator.py', 'enhanced_ui_design.py', 'requirements.txt',
-                'README.md', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat', 'infor_logo.ico',
-                'fsm_tester.db', 'version.json', '.github_workflows_rice-tester-ci.yml',
-                'github_json.config', 'github_integration_manager.py', 'github_config.json'
+            # Dynamic file discovery - include all Python files and essential files
+            files_to_upload = []
+            
+            # Add all Python files
+            for file in os.listdir(rice_dir):
+                if file.endswith('.py'):
+                    files_to_upload.append(file)
+            
+            # Add essential non-Python files
+            essential_files = [
+                'requirements.txt', 'README.md', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat',
+                'infor_logo.ico', 'fsm_tester.db', 'version.json', 
+                '.github_workflows_rice-tester-ci.yml', 'github_json.config'
             ]
+            
+            for file in essential_files:
+                if file not in files_to_upload:
+                    files_to_upload.append(file)
+            
+            # Remove security-sensitive files
+            security_excluded = ['github_config.json', 'updater_config.json']
+            files_to_upload = [f for f in files_to_upload if f not in security_excluded]
             
             headers = {
                 'Authorization': f'token {self.github_token}',
@@ -598,7 +611,7 @@ class GitHubIntegrationManager:
             excluded_count = 0
             failed_files = []
             
-            # Security-excluded files (expected to be missing)
+            # Security-excluded files (already filtered out above)
             security_excluded = ['github_config.json', 'updater_config.json']
             
             total_files = len(files_to_upload)
