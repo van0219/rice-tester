@@ -13,7 +13,14 @@ from datetime import datetime
 try:
     from enhanced_popup_system import create_enhanced_dialog
 except ImportError:
-    from Temp.enhanced_popup_system import create_enhanced_dialog
+    try:
+        from Temp.enhanced_popup_system import create_enhanced_dialog
+    except ImportError:
+        def create_enhanced_dialog(parent, title, width, height, modal=True):
+            dialog = tk.Toplevel(parent)
+            dialog.title(title)
+            dialog.geometry(f"{width}x{height}")
+            return dialog
 
 class GitHubIntegrationManager:
     """
@@ -267,19 +274,6 @@ class GitHubIntegrationManager:
                            cursor='hand2', bd=0, command=self._copy_release_url)
         copy_btn.pack(anchor="w", pady=(10, 0))
         
-        # Updates vs Manual Download explanation
-        info_frame = tk.Frame(release_frame, bg='#fff3e0', relief='solid', bd=1, padx=10, pady=8)
-        info_frame.pack(fill="x", pady=(10, 0))
-        
-        tk.Label(info_frame, text="💡 Updates Button vs Manual Download:", font=('Segoe UI', 9, 'bold'), 
-                bg='#fff3e0', fg='#e65100').pack(anchor="w")
-        
-        explanation = """• Updates Button: Automatic in-app update (preserves settings, seamless)
-• Manual Download: Fresh installation from GitHub (team deployment)"""
-        
-        tk.Label(info_frame, text=explanation, font=('Segoe UI', 8), 
-                bg='#fff3e0', fg='#bf360c', justify="left").pack(anchor="w", pady=(3, 0))
-        
         # Progress section
         progress_frame = tk.Frame(parent, bg='#f6f8fa', relief='solid', bd=1, padx=20, pady=15)
         progress_frame.pack(fill="x", pady=(10, 0))
@@ -324,20 +318,10 @@ class GitHubIntegrationManager:
         """Create GitHub repository"""
         repo_name = self.repo_entry.get().strip()
         if not repo_name:
-            self._show_enhanced_popup("Missing Repository Name", "Please enter a repository name.", "warning")
+            self.show_popup("Missing Repository Name", "Please enter a repository name.", "warning")
             return
         
-        # Show loading dialog
-        loading = self._show_loading_dialog("🏠 Creating Repository", "Setting up your GitHub repository...")
-        
-        def create_repo():
-            self._add_progress(f"Creating repository '{repo_name}'...")
-            self._create_repository_process(repo_name, loading)
-        
-        import threading
-        threading.Thread(target=create_repo, daemon=True).start()
-    
-    def _create_repository_process(self, repo_name, loading):
+        self._add_progress(f"Creating repository '{repo_name}'...")
         
         try:
             headers = {
@@ -355,110 +339,54 @@ class GitHubIntegrationManager:
             response = requests.post('https://api.github.com/user/repos', 
                                    headers=headers, json=data, timeout=30)
             
-            loading.destroy()
-            
             if response.status_code == 201:
                 self.repo_name = repo_name
                 self._save_updater_config()
                 self._add_progress(f"✅ Repository '{repo_name}' created successfully!")
                 self._add_progress(f"🔗 URL: https://github.com/{self.github_username}/{repo_name}")
-                self._show_enhanced_popup("Success", f"Repository '{repo_name}' created successfully!", "success")
+                self.show_popup("Success", f"Repository '{repo_name}' created successfully!", "success")
             elif response.status_code == 422:
                 self._add_progress(f"ℹ️ Repository '{repo_name}' already exists")
                 self.repo_name = repo_name
                 self._save_updater_config()
-                self._show_enhanced_popup("Repository Exists", f"Repository '{repo_name}' already exists. You can proceed to next step.", "warning")
+                self.show_popup("Repository Exists", f"Repository '{repo_name}' already exists. You can proceed to next step.", "warning")
             else:
                 error_msg = response.json().get('message', 'Unknown error')
                 self._add_progress(f"❌ Failed to create repository: {error_msg}")
-                self._show_enhanced_popup("Error", f"Failed to create repository: {error_msg}", "error")
+                self.show_popup("Error", f"Failed to create repository: {error_msg}", "error")
                 
         except Exception as e:
-            loading.destroy()
             self._add_progress(f"❌ Error creating repository: {str(e)}")
-            self._show_enhanced_popup("Error", f"Error creating repository: {str(e)}", "error")
+            self.show_popup("Error", f"Error creating repository: {str(e)}", "error")
     
     def _upload_rice_tester(self):
         """Upload RICE Tester code to repository"""
         repo_name = self.repo_entry.get().strip()
         if not repo_name:
-            self._show_enhanced_popup("Missing Repository Name", "Please enter a repository name.", "warning")
+            self.show_popup("Missing Repository Name", "Please enter a repository name.", "warning")
             return
         
         # Check if repository exists
         if not self._check_repository_exists(repo_name):
-            self._show_enhanced_popup("Repository Not Found", f"Repository '{repo_name}' does not exist. Please create it first using Step 1.", "warning")
+            self.show_popup("Repository Not Found", f"Repository '{repo_name}' does not exist. Please create it first using Step 1.", "warning")
             return
         
-        # Set repo name if check passed
         self.repo_name = repo_name
-        
-        # Show uploading dialog with progress tracking
-        loading = self._show_uploading_dialog("📦 Uploading Code", "Preparing to upload RICE Tester files...")
-        
-        def upload_code():
-            self._add_progress("Uploading RICE Tester code...")
-            self._upload_rice_tester_process(loading)
-        
-        import threading
-        threading.Thread(target=upload_code, daemon=True).start()
-    
-    def _upload_rice_tester_process(self, loading):
+        self._add_progress("Uploading RICE Tester code...")
         
         try:
             # Get current RICE Tester directory
-            rice_dir = os.path.dirname(os.path.abspath(__file__)).replace('\\Temp', '')
+            rice_dir = os.path.dirname(os.path.abspath(__file__))
             
-            # Dynamic file discovery - automatically include all relevant files
-            files_to_upload = []
-            
-            # Core Python files (must upload)
-            core_files = ['RICE_Tester.py', 'AuthSystem.py', 'SeleniumInboundTester_Lite.py', 
-                         'database_manager.py', 'rice_manager.py', 'rice_scenario_manager.py',
-                         'personal_analytics.py', 'tes070_generator.py', 'enhanced_ui_design.py']
-            
-            # Files to exclude (temporary, debug, backup files)
-            exclude_patterns = ['_backup', '_original', 'debug_', 'temp_', 'test_', 'check_', 
-                              'analyze_', 'find_', 'create_team', 'create_bulletproof', 
-                              'create_complete', 'create_corrected', 'create_final', 'create_enhanced']
-            
-            # Get ALL Python files from main directory (filtered)
-            for file in os.listdir(rice_dir):
-                if file.endswith('.py') and not any(pattern in file.lower() for pattern in exclude_patterns):
-                    files_to_upload.append(file)
-            
-            # Get essential files from Temp folder (only specific ones needed for team)
-            temp_dir = os.path.join(rice_dir, 'Temp')
-            if os.path.exists(temp_dir):
-                temp_essential = ['auto_updater.py', 'enhanced_popup_system.py', 'github_integration_manager.py',
-                                'github_config.json', 'updater_config.json', '.github_workflows_rice-tester-ci.yml']
-                for file in temp_essential:
-                    # Only add if not already in main directory
-                    if file not in files_to_upload and os.path.exists(os.path.join(temp_dir, file)):
-                        files_to_upload.append(file)
-            
-            # Sanitize database before upload
-            self._sanitize_database_for_upload()
-            
-            # Add essential non-Python files
-            essential_files = ['requirements.txt', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat', 
-                             'infor_logo.ico', 'infor_logo.png', 'fsm_tester_sanitized.db', 'version.json']
-            for file in essential_files:
-                if os.path.exists(os.path.join(rice_dir, file)):
-                    files_to_upload.append(file)
-            
-            # Remove duplicates and ensure core files are prioritized
-            files_to_upload = list(set(files_to_upload))  # Remove duplicates
-            
-            # Prioritize core files (upload first)
-            prioritized_files = []
-            for core_file in core_files:
-                if core_file in files_to_upload:
-                    prioritized_files.append(core_file)
-                    files_to_upload.remove(core_file)
-            
-            # Sort remaining files
-            files_to_upload = prioritized_files + sorted(files_to_upload)
+            # Core files to upload
+            files_to_upload = [
+                'RICE_Tester.py', 'SeleniumInboundTester_Lite.py', 'database_manager.py',
+                'rice_manager.py', 'rice_scenario_manager.py', 'personal_analytics.py',
+                'tes070_generator.py', 'enhanced_ui_design.py', 'requirements.txt',
+                'README_TEAM.txt', 'SETUP_FIRST_TIME.bat', 'infor_logo.ico',
+                'fsm_tester.db', 'version.json', '.github_workflows_rice-tester-ci.yml',
+                'github_json.config', 'github_integration_manager.py'
+            ]
             
             headers = {
                 'Authorization': f'token {self.github_token}',
@@ -467,149 +395,62 @@ class GitHubIntegrationManager:
             
             uploaded_count = 0
             failed_files = []
-            total_files = len(files_to_upload)
             
-            # Update loading dialog with file count
-            self._update_uploading_dialog(loading, f"Uploading {total_files} RICE Tester files to GitHub...", 0, total_files)
-            
-            for i, filename in enumerate(files_to_upload):
+            for filename in files_to_upload:
                 file_path = os.path.join(rice_dir, filename)
-                
-                # Check if file exists, if not try Temp folder
-                temp_files = ['personal_analytics.py', 'auto_updater.py', 'enhanced_run_all_scenarios.py', 
-                             'enhanced_popup_system.py', 'github_integration_manager.py']
-                if not os.path.exists(file_path) and filename in temp_files:
-                    file_path = os.path.join(rice_dir, 'Temp', filename)
-                
-                # Skip if file doesn't exist in either location
-                if not os.path.exists(file_path):
-                    self._add_progress(f"⚠️ File not found: {filename}")
-                    failed_files.append(f"{filename} (not found)")
-                    continue
                 
                 if os.path.exists(file_path):
                     try:
-                        # Check if file already exists first
-                        check_url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/{filename}'
-                        check_response = requests.get(check_url, headers=headers, timeout=10)
-                        
                         with open(file_path, 'rb') as f:
                             content = base64.b64encode(f.read()).decode('utf-8')
+                        
+                        url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/{filename}'
                         
                         data = {
                             'message': f'Add {filename}',
                             'content': content
                         }
                         
-                        # If file exists, include SHA for update
-                        if check_response.status_code == 200:
-                            existing_data = check_response.json()
-                            data['sha'] = existing_data['sha']
-                            data['message'] = f'Update {filename}'
+                        response = requests.put(url, headers=headers, json=data, timeout=30)
                         
-                        # Upload with retry logic
-                        for attempt in range(3):
-                            try:
-                                response = requests.put(check_url, headers=headers, json=data, timeout=45)
-                                
-                                if response.status_code in [200, 201]:
-                                    uploaded_count += 1
-                                    self._add_progress(f"✅ Uploaded {filename}")
-                                    # Update progress in loading dialog
-                                    self._update_uploading_dialog(loading, f"Uploading {total_files} RICE Tester files to GitHub...", uploaded_count, total_files)
-                                    break
-                                elif response.status_code == 409:  # Conflict
-                                    self._add_progress(f"⚠️ Conflict uploading {filename}, retrying...")
-                                    if attempt < 2:  # Retry with fresh SHA
-                                        check_response = requests.get(check_url, headers=headers, timeout=10)
-                                        if check_response.status_code == 200:
-                                            data['sha'] = check_response.json()['sha']
-                                        continue
-                                else:
-                                    error_msg = response.json().get('message', 'Unknown error') if response.content else 'Network error'
-                                    self._add_progress(f"⚠️ Failed to upload {filename}: {error_msg}")
-                                    failed_files.append(f"{filename} ({error_msg})")
-                                    break
-                            except requests.exceptions.Timeout:
-                                if attempt < 2:
-                                    self._add_progress(f"⏳ Timeout uploading {filename}, retrying...")
-                                    continue
-                                else:
-                                    self._add_progress(f"⚠️ Failed to upload {filename}: Timeout")
-                                    failed_files.append(f"{filename} (timeout)")
-                                    break
-                            except Exception as upload_error:
-                                if attempt < 2:
-                                    self._add_progress(f"⏳ Error uploading {filename}, retrying...")
-                                    continue
-                                else:
-                                    self._add_progress(f"⚠️ Failed to upload {filename}: {str(upload_error)}")
-                                    failed_files.append(f"{filename} ({str(upload_error)})")
-                                    break
+                        if response.status_code in [200, 201]:
+                            uploaded_count += 1
+                            self._add_progress(f"✅ Uploaded {filename}")
+                        else:
+                            self._add_progress(f"⚠️ Failed to upload {filename}")
+                            failed_files.append(filename)
                     
                     except Exception as e:
-                        self._add_progress(f"❌ Error processing {filename}: {str(e)}")
-                        failed_files.append(f"{filename} (processing error: {str(e)})")
+                        self._add_progress(f"❌ Error uploading {filename}: {str(e)}")
+                        failed_files.append(filename)
                 else:
                     self._add_progress(f"⚠️ File not found: {filename}")
-                    failed_files.append(f"{filename} (not found)")
+                    failed_files.append(filename)
             
-            # Final progress update before closing
-            self._update_uploading_dialog(loading, "Upload completed!", uploaded_count, total_files)
+            self._add_progress(f"📁 Upload complete: {uploaded_count}/{len(files_to_upload)} files uploaded")
             
-            # Small delay to show completion
-            import time
-            time.sleep(1)
-            
-            loading.destroy()
-            self._add_progress(f"📁 Upload complete: {uploaded_count}/{total_files} files uploaded")
-            
-            if uploaded_count == total_files:
-                self._show_enhanced_popup("Upload Complete", f"Successfully uploaded all {uploaded_count} files to GitHub!", "success")
-            elif uploaded_count > 0:
-                failed_list = "\n".join(failed_files[:5])  # Show first 5 failed files
-                if len(failed_files) > 5:
-                    failed_list += f"\n... and {len(failed_files) - 5} more"
-                message = f"Uploaded {uploaded_count}/{total_files} files.\n\nFailed files:\n{failed_list}"
-                self._show_enhanced_popup("Partial Upload", message, "warning")
+            if uploaded_count == len(files_to_upload):
+                self.show_popup("Upload Complete", f"Successfully uploaded all {uploaded_count} files to GitHub!", "success")
             else:
-                failed_list = "\n".join(failed_files[:10])  # Show first 10 failed files
-                if len(failed_files) > 10:
-                    failed_list += f"\n... and {len(failed_files) - 10} more"
-                message = f"No files uploaded successfully.\n\nFailed files:\n{failed_list}"
-                self._show_enhanced_popup("Upload Failed", message, "error")
+                self.show_popup("Partial Upload", f"Uploaded {uploaded_count}/{len(files_to_upload)} files. Some files failed.", "warning")
             
         except Exception as e:
-            loading.destroy()
             self._add_progress(f"❌ Upload error: {str(e)}")
-            self._show_enhanced_popup("Upload Error", f"Error uploading files: {str(e)}", "error")
+            self.show_popup("Upload Error", f"Error uploading files: {str(e)}", "error")
     
     def _setup_cicd(self):
         """Setup CI/CD pipeline"""
         repo_name = self.repo_entry.get().strip()
         if not repo_name:
-            self._show_enhanced_popup("Missing Repository Name", "Please enter a repository name.", "warning")
+            self.show_popup("Missing Repository Name", "Please enter a repository name.", "warning")
             return
         
-        # Check if repository exists
         if not self._check_repository_exists(repo_name):
-            self._show_enhanced_popup("Repository Not Found", f"Repository '{repo_name}' does not exist. Please create it first using Step 1.", "warning")
+            self.show_popup("Repository Not Found", f"Repository '{repo_name}' does not exist. Please create it first using Step 1.", "warning")
             return
         
-        # Set repo name if check passed
         self.repo_name = repo_name
-        
-        # Show loading dialog
-        loading = self._show_loading_dialog("⚙️ Setting up CI/CD", "Configuring GitHub Actions pipeline...")
-        
-        def setup_pipeline():
-            self._add_progress("Setting up CI/CD pipeline...")
-            self._setup_cicd_process(loading)
-        
-        import threading
-        threading.Thread(target=setup_pipeline, daemon=True).start()
-    
-    def _setup_cicd_process(self, loading):
+        self._add_progress("Setting up CI/CD pipeline...")
         
         try:
             # Read CI/CD workflow file
@@ -619,10 +460,6 @@ class GitHubIntegrationManager:
                 with open(workflow_path, 'r', encoding='utf-8') as f:
                     workflow_content = f.read()
                 
-                # Auto-update deprecated action versions
-                workflow_content = self._update_action_versions(workflow_content)
-                
-                # Create .github/workflows directory structure
                 headers = {
                     'Authorization': f'token {self.github_token}',
                     'Accept': 'application/vnd.github.v3+json'
@@ -630,64 +467,41 @@ class GitHubIntegrationManager:
                 
                 url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/.github/workflows/rice-tester-ci.yml'
                 
-                # Check if workflow file already exists
-                check_response = requests.get(url, headers=headers, timeout=10)
-                
-                # Upload workflow file
                 content_b64 = base64.b64encode(workflow_content.encode('utf-8')).decode('utf-8')
                 
                 data = {
-                    'message': 'Update CI/CD pipeline for RICE Tester' if check_response.status_code == 200 else 'Add CI/CD pipeline for RICE Tester',
+                    'message': 'Add CI/CD pipeline for RICE Tester',
                     'content': content_b64
                 }
                 
-                # If file exists, include SHA for update
-                if check_response.status_code == 200:
-                    existing_data = check_response.json()
-                    data['sha'] = existing_data['sha']
-                    self._add_progress("🔄 Updating existing CI/CD workflow...")
-                else:
-                    self._add_progress("📝 Creating new CI/CD workflow...")
-                
                 response = requests.put(url, headers=headers, json=data, timeout=30)
                 
-                loading.destroy()
                 if response.status_code in [200, 201]:
                     self._add_progress("✅ CI/CD pipeline configured successfully!")
-                    self._add_progress("🔧 GitHub Actions will now automatically:")
-                    self._add_progress("   • Test RICE Tester when you push code")
-                    self._add_progress("   • Create team distribution packages")
-                    self._add_progress("   • Generate releases with assets")
-                    
-                    self._show_enhanced_popup("CI/CD Setup Complete", "GitHub Actions pipeline configured successfully!", "success")
+                    self.show_popup("CI/CD Setup Complete", "GitHub Actions pipeline configured successfully!", "success")
                 else:
                     self._add_progress(f"❌ Failed to setup CI/CD: {response.status_code}")
-                    self._show_enhanced_popup("CI/CD Error", "Failed to setup CI/CD pipeline.", "error")
+                    self.show_popup("CI/CD Error", "Failed to setup CI/CD pipeline.", "error")
             else:
-                loading.destroy()
                 self._add_progress("❌ CI/CD workflow file not found")
-                self._show_enhanced_popup("File Not Found", "CI/CD workflow file not found in Temp folder.", "error")
+                self.show_popup("File Not Found", "CI/CD workflow file not found.", "error")
                 
         except Exception as e:
-            loading.destroy()
             self._add_progress(f"❌ CI/CD setup error: {str(e)}")
-            self._show_enhanced_popup("Setup Error", f"Error setting up CI/CD: {str(e)}", "error")
+            self.show_popup("Setup Error", f"Error setting up CI/CD: {str(e)}", "error")
     
     def _create_release(self):
         """Create release with automatic version increment"""
         repo_name = self.repo_entry.get().strip()
         if not repo_name:
-            self._show_enhanced_popup("Missing Repository Name", "Please enter a repository name.", "warning")
+            self.show_popup("Missing Repository Name", "Please enter a repository name.", "warning")
             return
         
-        # Check if repository exists
         if not self._check_repository_exists(repo_name):
-            self._show_enhanced_popup("Repository Not Found", f"Repository '{repo_name}' does not exist. Please create it first using Step 1.", "warning")
+            self.show_popup("Repository Not Found", f"Repository '{repo_name}' does not exist. Please create it first using Step 1.", "warning")
             return
         
-        # Set repo name if check passed
         self.repo_name = repo_name
-        
         self._add_progress("Creating release...")
         
         try:
@@ -764,27 +578,19 @@ class GitHubIntegrationManager:
                 release_data = response.json()
                 self._add_progress(f"✅ Release {next_version} created successfully!")
                 self._add_progress(f"🔗 Release URL: {release_data['html_url']}")
-                self._add_progress("🎉 GitHub CI/CD setup is now complete!")
-                self._add_progress("")
-                self._add_progress("📋 Next Steps:")
-                self._add_progress("1. Update auto_updater.py with your repository details")
-                self._add_progress("2. Add personal dashboard button to RICE Tester UI")
-                self._add_progress("3. Deploy enhanced RICE Tester to your team")
-                
-                self._show_enhanced_popup("Release Created", f"Release {next_version} created successfully! GitHub CI/CD is now fully configured.", "success")
+                self.show_popup("Release Created", f"Release {next_version} created successfully!", "success")
             else:
                 error_msg = response.json().get('message', 'Unknown error')
                 self._add_progress(f"❌ Failed to create release: {error_msg}")
-                self._show_enhanced_popup("Release Error", f"Failed to create release: {error_msg}", "error")
+                self.show_popup("Release Error", f"Failed to create release: {error_msg}", "error")
                 
         except Exception as e:
             self._add_progress(f"❌ Release creation error: {str(e)}")
-            self._show_enhanced_popup("Error", f"Error creating release: {str(e)}", "error")
+            self.show_popup("Error", f"Error creating release: {str(e)}", "error")
     
     def _save_github_credentials(self, token, username):
-        """Save GitHub credentials securely (basic encryption)"""
+        """Save GitHub credentials securely"""
         try:
-            # Simple encoding (not production-grade encryption)
             encoded_token = base64.b64encode(token.encode()).decode()
             
             config = {
@@ -799,158 +605,6 @@ class GitHubIntegrationManager:
                 
         except Exception as e:
             print(f"Failed to save GitHub config: {e}")
-    
-    def _show_loading_dialog(self, title, message):
-        """Show loading dialog for GitHub operations"""
-        loading = tk.Toplevel()
-        loading.title(title)
-        loading.geometry("400x200")
-        loading.configure(bg='#ffffff')
-        loading.resizable(False, False)
-        loading.transient()
-        loading.grab_set()
-        
-        # Center the dialog
-        loading.update_idletasks()
-        x = (loading.winfo_screenwidth() // 2) - (400 // 2)
-        y = (loading.winfo_screenheight() // 2) - (200 // 2)
-        loading.geometry(f"400x200+{x}+{y}")
-        
-        try:
-            loading.iconbitmap("infor_logo.ico")
-        except:
-            pass
-        
-        # Header
-        header_frame = tk.Frame(loading, bg='#3b82f6', height=60)
-        header_frame.pack(fill="x")
-        header_frame.pack_propagate(False)
-        
-        tk.Label(header_frame, text=title, font=('Segoe UI', 14, 'bold'), 
-                bg='#3b82f6', fg='#ffffff').pack(expand=True)
-        
-        # Content
-        content_frame = tk.Frame(loading, bg='#ffffff', padx=20, pady=20)
-        content_frame.pack(fill="both", expand=True)
-        
-        tk.Label(content_frame, text=message, font=('Segoe UI', 11), 
-                bg='#ffffff', fg='#374151').pack(pady=(0, 15))
-        
-        # Animated progress bar
-        progress_bar = ttk.Progressbar(content_frame, mode='indeterminate', length=300)
-        progress_bar.pack(pady=(0, 10))
-        progress_bar.start(10)
-        
-        tk.Label(content_frame, text="Please wait...", font=('Segoe UI', 9), 
-                bg='#ffffff', fg='#6b7280').pack()
-        
-        loading.update()
-        return loading
-    
-    def _show_uploading_dialog(self, title, message):
-        """Show uploading dialog with progress tracking"""
-        loading = tk.Toplevel()
-        loading.title(title)
-        loading.geometry("450x250")
-        loading.configure(bg='#ffffff')
-        loading.resizable(False, False)
-        loading.transient()
-        loading.grab_set()
-        
-        # Center the dialog
-        loading.update_idletasks()
-        x = (loading.winfo_screenwidth() // 2) - (450 // 2)
-        y = (loading.winfo_screenheight() // 2) - (250 // 2)
-        loading.geometry(f"450x250+{x}+{y}")
-        
-        try:
-            loading.iconbitmap("infor_logo.ico")
-        except:
-            pass
-        
-        # Header
-        header_frame = tk.Frame(loading, bg='#3b82f6', height=60)
-        header_frame.pack(fill="x")
-        header_frame.pack_propagate(False)
-        
-        tk.Label(header_frame, text=title, font=('Segoe UI', 14, 'bold'), 
-                bg='#3b82f6', fg='#ffffff').pack(expand=True)
-        
-        # Content
-        content_frame = tk.Frame(loading, bg='#ffffff', padx=20, pady=20)
-        content_frame.pack(fill="both", expand=True)
-        
-        # Message label (will be updated)
-        loading.message_label = tk.Label(content_frame, text=message, font=('Segoe UI', 11), 
-                                        bg='#ffffff', fg='#374151')
-        loading.message_label.pack(pady=(0, 15))
-        
-        # Progress bar (determinate for file upload)
-        loading.progress_bar = ttk.Progressbar(content_frame, mode='determinate', length=350)
-        loading.progress_bar.pack(pady=(0, 10))
-        
-        # Progress text
-        loading.progress_label = tk.Label(content_frame, text="Preparing...", font=('Segoe UI', 9), 
-                                         bg='#ffffff', fg='#6b7280')
-        loading.progress_label.pack()
-        
-        loading.update()
-        return loading
-    
-    def _update_uploading_dialog(self, loading, message, current, total):
-        """Update uploading dialog with current progress"""
-        if loading and loading.winfo_exists():
-            try:
-                # Update message
-                loading.message_label.config(text=message)
-                
-                # Update progress bar
-                if total > 0:
-                    progress_percent = (current / total) * 100
-                    loading.progress_bar.config(value=progress_percent)
-                    
-                    # Update progress text
-                    loading.progress_label.config(text=f"Uploaded {current}/{total} files ({progress_percent:.0f}%)")
-                
-                loading.update()
-            except:
-                pass  # Dialog might be destroyed
-    
-    def _get_current_version(self):
-        """Get current version from version.json"""
-        try:
-            # Try main directory first
-            version_path = os.path.join(os.path.dirname(__file__).replace('\\Temp', ''), 'version.json')
-            if os.path.exists(version_path):
-                with open(version_path, 'r') as f:
-                    version_data = json.load(f)
-                    return f"v{version_data.get('version', '1.0.0')}"
-        except Exception:
-            pass
-        return "v1.0.0"
-    
-    def _save_updater_config(self):
-        """Save updater configuration for Updates button"""
-        if not self.github_username or not self.repo_name:
-            return
-        
-        try:
-            # Get current version from version.json
-            current_version = self._get_current_version().replace('v', '')
-            
-            updater_config = {
-                'github_username': self.github_username,
-                'github_repo': self.repo_name,
-                'current_version': current_version,
-                'configured_at': datetime.now().isoformat()
-            }
-            
-            config_path = os.path.join(os.path.dirname(__file__), 'updater_config.json')
-            with open(config_path, 'w') as f:
-                json.dump(updater_config, f, indent=2)
-                
-        except Exception as e:
-            print(f"Failed to save updater config: {e}")
     
     def _load_github_credentials(self):
         """Load saved GitHub credentials"""
@@ -971,63 +625,39 @@ class GitHubIntegrationManager:
         
         return False
     
-    def _update_action_versions(self, workflow_content):
-        """Auto-update deprecated GitHub Action versions"""
-        updates_made = False
-        
-        # Update deprecated action versions
-        version_updates = {
-            'actions/upload-artifact@v3': 'actions/upload-artifact@v4',
-            'actions/download-artifact@v3': 'actions/download-artifact@v4',
-            'actions/upload-artifact@v2': 'actions/upload-artifact@v4',
-            'actions/download-artifact@v2': 'actions/download-artifact@v4'
-        }
-        
-        for old_version, new_version in version_updates.items():
-            if old_version in workflow_content:
-                workflow_content = workflow_content.replace(old_version, new_version)
-                updates_made = True
-                self._add_progress(f"🔄 Auto-updated: {old_version} → {new_version}")
-        
-        if updates_made:
-            self._add_progress("✅ Workflow file automatically updated with latest action versions")
-        
-        return workflow_content
-    
-    def _sanitize_database_for_upload(self):
-        """Sanitize database before GitHub upload - removes all sensitive data"""
+    def _get_current_version(self):
+        """Get current version from version.json"""
         try:
-            # Import and run sanitization script
-            import sys
-            import os
+            version_path = os.path.join(os.path.dirname(__file__), 'version.json')
+            if os.path.exists(version_path):
+                with open(version_path, 'r') as f:
+                    version_data = json.load(f)
+                    return f"v{version_data.get('version', '1.0.0')}"
+        except Exception:
+            pass
+        return "v1.0.0"
+    
+    def _save_updater_config(self):
+        """Save updater configuration for Updates button"""
+        if not self.github_username or not self.repo_name:
+            return
+        
+        try:
+            current_version = self._get_current_version().replace('v', '')
             
-            # Add current directory to path for imports
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            if current_dir not in sys.path:
-                sys.path.insert(0, current_dir)
+            updater_config = {
+                'github_username': self.github_username,
+                'github_repo': self.repo_name,
+                'current_version': current_version,
+                'configured_at': datetime.now().isoformat()
+            }
             
-            # Import sanitization function
-            from sanitize_database_for_github import sanitize_database_for_github
-            
-            # Change to RICE Tester directory
-            rice_dir = current_dir.replace('\\Temp', '')
-            original_cwd = os.getcwd()
-            os.chdir(rice_dir)
-            
-            try:
-                # Run sanitization
-                success = sanitize_database_for_github()
-                if success:
-                    self._add_progress("🛡️ Database sanitized - all sensitive data removed")
-                    self._add_progress("📋 Sanitized tables: global_config, sftp_profiles, test_users, service_accounts, scenarios, scenario_steps, test_steps")
-                else:
-                    self._add_progress("⚠️ Database sanitization failed - check manually")
-            finally:
-                os.chdir(original_cwd)
+            config_path = os.path.join(os.path.dirname(__file__), 'updater_config.json')
+            with open(config_path, 'w') as f:
+                json.dump(updater_config, f, indent=2)
                 
         except Exception as e:
-            self._add_progress(f"❌ Database sanitization error: {str(e)}")
-            self._add_progress("🚨 WARNING: Database may contain sensitive data!")
+            print(f"Failed to save updater config: {e}")
     
     def _copy_release_url(self):
         """Copy release URL to clipboard"""
@@ -1042,91 +672,9 @@ class GitHubIntegrationManager:
             root.update()
             root.destroy()
             
-            self._show_enhanced_popup("Copied", "Release URL copied to clipboard!", "success")
+            self.show_popup("Copied", "Release URL copied to clipboard!", "success")
         except Exception as e:
-            self._show_enhanced_popup("Error", f"Failed to copy URL: {str(e)}", "error")
-    
-    def _show_enhanced_popup(self, title, message, status):
-        """Show enhanced popup that doesn't hide existing forms"""
-        popup = create_enhanced_dialog(None, title, 400, 200, modal=False)
-        
-        try:
-            popup.iconbitmap("infor_logo.ico")
-        except:
-            pass
-        
-        # Status colors
-        if status == "success":
-            icon = "✅"
-            color = "#10b981"
-        elif status == "warning":
-            icon = "⚠️"
-            color = "#f59e0b"
-        else:
-            icon = "❌"
-            color = "#ef4444"
-        
-        # Header
-        header_frame = tk.Frame(popup, bg=color, height=60)
-        header_frame.pack(fill="x")
-        header_frame.pack_propagate(False)
-        
-        tk.Label(header_frame, text=f"{icon} {title}", 
-                font=('Segoe UI', 14, 'bold'), bg=color, fg='#ffffff').pack(expand=True)
-        
-        # Content
-        content_frame = tk.Frame(popup, bg='#ffffff', padx=20, pady=20)
-        content_frame.pack(fill="both", expand=True)
-        
-        tk.Label(content_frame, text=message, font=('Segoe UI', 10), 
-                bg='#ffffff', fg='#374151', wraplength=350, justify="left").pack(pady=(0, 15))
-        
-        tk.Button(content_frame, text="Close", font=('Segoe UI', 10, 'bold'), 
-                 bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=8, 
-                 cursor='hand2', bd=0, command=popup.destroy).pack()
-
-# Integration function for main RICE Tester
-def add_github_integration_to_rice_tester():
-    """
-    Integration instructions for adding GitHub module to RICE Tester
-    
-    Add this to your main RICE Tester interface:
-    
-    1. In SeleniumInboundTester_Lite.py, add to setup_ui():
-    
-    # Check if user has GitHub access
-    if self.user['username'].lower() in ['vansilleza_fpi', 'van_silleza', 'vansilleza']:
-        # Add GitHub tab
-        self.tab_manager.add_tab("🐙 GitHub CI/CD", 
-                                lambda parent: self._setup_github_tab(parent))
-    
-    2. Add this method to SeleniumInboundTester_Lite class:
-    
-    def _setup_github_tab(self, parent):
-        from github_integration_manager import GitHubIntegrationManager
-        
-        github_manager = GitHubIntegrationManager(
-            self.db_manager, 
-            self.show_popup, 
-            self.user
-        )
-        
-        # Create GitHub integration button
-        github_frame = tk.Frame(parent, bg='#ffffff', padx=50, pady=50)
-        github_frame.pack(fill="both", expand=True)
-        
-        tk.Label(github_frame, text="🐙 GitHub CI/CD Integration", 
-                font=('Segoe UI', 18, 'bold'), bg='#ffffff', fg='#24292e').pack(pady=(0, 20))
-        
-        tk.Label(github_frame, text="Set up automated CI/CD pipeline for RICE Tester", 
-                font=('Segoe UI', 12), bg='#ffffff', fg='#586069').pack(pady=(0, 30))
-        
-        tk.Button(github_frame, text="🚀 Open GitHub Integration", 
-                 font=('Segoe UI', 14, 'bold'), bg='#238636', fg='#ffffff', 
-                 relief='flat', padx=30, pady=15, cursor='hand2', bd=0,
-                 command=github_manager.show_github_integration_panel).pack()
-    """
-    pass
+            self.show_popup("Error", f"Failed to copy URL: {str(e)}", "error")
 
 if __name__ == "__main__":
     print("GitHub Integration Manager for RICE Tester")
