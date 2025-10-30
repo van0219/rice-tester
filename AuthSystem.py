@@ -708,6 +708,13 @@ class AuthSystem:
 
     def process_signup(self, full_name, company, username, password):
         """📝 Process signup with enhanced features"""
+        # 🚨 SECURITY: Block privileged usernames from signup
+        restricted_usernames = ['vansilleza_fpi', 'van_silleza', 'admin', 'administrator', 'root', 'system']
+        if username.lower() in [u.lower() for u in restricted_usernames]:
+            self.signup_btn.configure(text="🏢 Create Account", state='normal', bg='#4CAF50')
+            self.show_modern_popup("Username Restricted", "This username is reserved for system administrators.\n\nPlease choose a different username.", "error")
+            return
+        
         # Check if username exists
         cursor = self.conn.cursor()
         cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
@@ -867,11 +874,14 @@ class AuthSystem:
             print(f"Attempted database path: {self.db_path}")
             raise
         
-        # Create enhanced users table
+        # Create enhanced users table with immutable username restrictions
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
+                username TEXT UNIQUE NOT NULL CHECK (
+                    LOWER(username) NOT IN ('vansilleza_fpi', 'van_silleza', 'admin', 'administrator', 'root', 'system')
+                    OR id <= 3
+                ),
                 password_hash TEXT NOT NULL,
                 full_name TEXT NOT NULL,
                 company TEXT,
