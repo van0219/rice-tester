@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 import os
 from rice_dialogs import center_dialog
-from Temp.enhanced_popup_system import create_enhanced_dialog, enhanced_center_dialog
+from enhanced_popup_system import create_enhanced_dialog, enhanced_center_dialog
 
 class ScenarioDialogs:
     def __init__(self, db_manager, show_popup_callback):
