@@ -220,8 +220,17 @@ class AuthSystem:
                               font=('Segoe UI', title_font, 'bold'), bg='#1E2A38', fg='#FFFFFF')
         title_label.pack()
         
-        # Subtitle with dynamic font size
-        subtitle_label = tk.Label(header_frame, text="FSM Interface Testing Suite - Enterprise Edition", 
+        # Subtitle with version
+        try:
+            import json
+            version_path = os.path.join(os.path.dirname(__file__), 'version.json')
+            with open(version_path, 'r') as f:
+                version_data = json.load(f)
+            version_text = f"v{version_data['version']}"
+        except:
+            version_text = "v1.0.7"
+        
+        subtitle_label = tk.Label(header_frame, text=f"FSM Interface Testing Suite - Enterprise Edition {version_text}", 
                                  font=('Segoe UI', subtitle_font), bg='#1E2A38', fg='#9E9E9E')
         subtitle_label.pack(pady=(3, 0))
 
