@@ -16,7 +16,7 @@ class EnhancedPopupManager:
         popup = tk.Toplevel(parent)
         popup.title(title)
         popup.configure(bg='#ffffff')
-        popup.resizable(False, False)
+        popup.resizable(True, True)  # Allow resizing for better UX
         
         # Set icon if available
         try:
@@ -115,8 +115,25 @@ class EnhancedPopupManager:
 popup_manager = EnhancedPopupManager()
 
 def create_enhanced_popup(parent, title, message, status, modal=False):
-    """Create enhanced popup that doesn't hide existing forms"""
-    popup = popup_manager.create_non_blocking_popup(parent, title, 400, 250, modal)
+    """Create enhanced popup with dynamic height based on message length"""
+    # Calculate dynamic dimensions based on message length
+    base_height = 180  # Minimum height for header + button + padding
+    base_width = 450   # Increased base width for better readability
+    
+    # Calculate required dimensions
+    lines = message.split('\n')
+    max_line_length = max(len(line) for line in lines) if lines else 0
+    
+    # Dynamic width (8 pixels per character, with reasonable limits)
+    dynamic_width = max(base_width, min(800, max_line_length * 8 + 100))
+    
+    # Dynamic height based on content
+    chars_per_line = (dynamic_width - 100) // 8  # Account for padding and scrollbar
+    total_lines = sum(max(1, len(line) // chars_per_line + 1) for line in lines)
+    text_height = total_lines * 22  # 22px per line
+    dynamic_height = min(700, base_height + text_height)  # Increased cap to 700px
+    
+    popup = popup_manager.create_non_blocking_popup(parent, title, dynamic_width, dynamic_height, modal)
     
     # Status colors and icons
     if status == "success":
@@ -138,14 +155,32 @@ def create_enhanced_popup(parent, title, message, status, modal=False):
                            font=('Segoe UI', 14, 'bold'), bg=color, fg='#ffffff')
     header_label.pack(expand=True)
     
-    # Content
+    # Content with scrollable text for long messages
     content_frame = tk.Frame(popup, bg='#ffffff', padx=20, pady=20)
     content_frame.pack(fill="both", expand=True)
     
-    message_label = tk.Label(content_frame, text=message, 
-                            font=('Segoe UI', 10), bg='#ffffff', 
-                            justify="left", wraplength=350)
-    message_label.pack(pady=(0, 20))
+    # Use Text widget with scrollbar for long messages
+    if len(message) > 500 or message.count('\n') > 10:
+        # Create scrollable text widget for very long messages
+        text_frame = tk.Frame(content_frame, bg='#ffffff')
+        text_frame.pack(fill="both", expand=True, pady=(0, 20))
+        
+        text_widget = tk.Text(text_frame, font=('Segoe UI', 10), bg='#ffffff', 
+                             wrap=tk.WORD, relief='solid', bd=1, padx=10, pady=10)
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+        text_widget.configure(yscrollcommand=scrollbar.set)
+        
+        text_widget.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        text_widget.insert("1.0", message)
+        text_widget.config(state=tk.DISABLED)  # Make read-only
+    else:
+        # Use Label for shorter messages
+        message_label = tk.Label(content_frame, text=message, 
+                                font=('Segoe UI', 10), bg='#ffffff', 
+                                justify="left", wraplength=dynamic_width-80)
+        message_label.pack(pady=(0, 20), expand=True)
     
     # Close button
     close_btn = tk.Button(content_frame, text="Close", 
@@ -164,3 +199,29 @@ def create_enhanced_dialog(parent, title, width=400, height=300, modal=True):
 def enhanced_center_dialog(dialog, width=None, height=None, modal=True):
     """Enhanced centering that respects existing windows"""
     popup_manager.center_dialog_enhanced(dialog, width, height, modal)
+
+def calculate_dynamic_dialog_size(message_text, base_width=400, base_height=200, max_height=600):
+    """Calculate dynamic dialog dimensions based on content"""
+    # Calculate width based on longest line
+    lines = message_text.split('\n')
+    max_line_length = max(len(line) for line in lines) if lines else 0
+    
+    # Dynamic width (8 pixels per character, minimum base_width)
+    dynamic_width = max(base_width, min(800, max_line_length * 8 + 80))
+    
+    # Dynamic height based on number of lines and wrapping
+    chars_per_line = (dynamic_width - 80) // 8  # Account for padding
+    total_lines = sum(max(1, len(line) // chars_per_line + 1) for line in lines)
+    text_height = total_lines * 22  # 22px per line including spacing
+    dynamic_height = min(max_height, base_height + text_height)
+    
+    return dynamic_width, dynamic_height
+
+def create_dynamic_dialog(parent, title, content_text="", width=None, height=None, modal=True):
+    """Create dialog with dynamic sizing based on content"""
+    if width is None or height is None:
+        calc_width, calc_height = calculate_dynamic_dialog_size(content_text)
+        width = width or calc_width
+        height = height or calc_height
+    
+    return popup_manager.create_non_blocking_popup(parent, title, width, height, modal)
