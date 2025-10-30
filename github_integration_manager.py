@@ -437,9 +437,12 @@ class GitHubIntegrationManager:
                     if file not in files_to_upload and os.path.exists(os.path.join(temp_dir, file)):
                         files_to_upload.append(file)
             
+            # Sanitize database before upload
+            self._sanitize_database_for_upload()
+            
             # Add essential non-Python files
             essential_files = ['requirements.txt', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat', 
-                             'infor_logo.ico', 'infor_logo.png', 'fsm_tester.db', 'version.json']
+                             'infor_logo.ico', 'infor_logo.png', 'fsm_tester_sanitized.db', 'version.json']
             for file in essential_files:
                 if os.path.exists(os.path.join(rice_dir, file)):
                     files_to_upload.append(file)
@@ -463,6 +466,7 @@ class GitHubIntegrationManager:
             }
             
             uploaded_count = 0
+            failed_files = []
             total_files = len(files_to_upload)
             
             # Update loading dialog with file count
@@ -480,6 +484,7 @@ class GitHubIntegrationManager:
                 # Skip if file doesn't exist in either location
                 if not os.path.exists(file_path):
                     self._add_progress(f"⚠️ File not found: {filename}")
+                    failed_files.append(f"{filename} (not found)")
                     continue
                 
                 if os.path.exists(file_path):
@@ -523,6 +528,7 @@ class GitHubIntegrationManager:
                                 else:
                                     error_msg = response.json().get('message', 'Unknown error') if response.content else 'Network error'
                                     self._add_progress(f"⚠️ Failed to upload {filename}: {error_msg}")
+                                    failed_files.append(f"{filename} ({error_msg})")
                                     break
                             except requests.exceptions.Timeout:
                                 if attempt < 2:
@@ -530,6 +536,7 @@ class GitHubIntegrationManager:
                                     continue
                                 else:
                                     self._add_progress(f"⚠️ Failed to upload {filename}: Timeout")
+                                    failed_files.append(f"{filename} (timeout)")
                                     break
                             except Exception as upload_error:
                                 if attempt < 2:
@@ -537,12 +544,15 @@ class GitHubIntegrationManager:
                                     continue
                                 else:
                                     self._add_progress(f"⚠️ Failed to upload {filename}: {str(upload_error)}")
+                                    failed_files.append(f"{filename} ({str(upload_error)})")
                                     break
                     
                     except Exception as e:
                         self._add_progress(f"❌ Error processing {filename}: {str(e)}")
+                        failed_files.append(f"{filename} (processing error: {str(e)})")
                 else:
                     self._add_progress(f"⚠️ File not found: {filename}")
+                    failed_files.append(f"{filename} (not found)")
             
             # Final progress update before closing
             self._update_uploading_dialog(loading, "Upload completed!", uploaded_count, total_files)
@@ -557,9 +567,17 @@ class GitHubIntegrationManager:
             if uploaded_count == total_files:
                 self._show_enhanced_popup("Upload Complete", f"Successfully uploaded all {uploaded_count} files to GitHub!", "success")
             elif uploaded_count > 0:
-                self._show_enhanced_popup("Partial Upload", f"Uploaded {uploaded_count}/{total_files} files. Some files failed - check progress log.", "warning")
+                failed_list = "\n".join(failed_files[:5])  # Show first 5 failed files
+                if len(failed_files) > 5:
+                    failed_list += f"\n... and {len(failed_files) - 5} more"
+                message = f"Uploaded {uploaded_count}/{total_files} files.\n\nFailed files:\n{failed_list}"
+                self._show_enhanced_popup("Partial Upload", message, "warning")
             else:
-                self._show_enhanced_popup("Upload Failed", "No files were uploaded successfully. Check your connection and try again.", "error")
+                failed_list = "\n".join(failed_files[:10])  # Show first 10 failed files
+                if len(failed_files) > 10:
+                    failed_list += f"\n... and {len(failed_files) - 10} more"
+                message = f"No files uploaded successfully.\n\nFailed files:\n{failed_list}"
+                self._show_enhanced_popup("Upload Failed", message, "error")
             
         except Exception as e:
             loading.destroy()
@@ -975,6 +993,41 @@ class GitHubIntegrationManager:
             self._add_progress("✅ Workflow file automatically updated with latest action versions")
         
         return workflow_content
+    
+    def _sanitize_database_for_upload(self):
+        """Sanitize database before GitHub upload - removes all sensitive data"""
+        try:
+            # Import and run sanitization script
+            import sys
+            import os
+            
+            # Add current directory to path for imports
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            if current_dir not in sys.path:
+                sys.path.insert(0, current_dir)
+            
+            # Import sanitization function
+            from sanitize_database_for_github import sanitize_database_for_github
+            
+            # Change to RICE Tester directory
+            rice_dir = current_dir.replace('\\Temp', '')
+            original_cwd = os.getcwd()
+            os.chdir(rice_dir)
+            
+            try:
+                # Run sanitization
+                success = sanitize_database_for_github()
+                if success:
+                    self._add_progress("🛡️ Database sanitized - all sensitive data removed")
+                    self._add_progress("📋 Sanitized tables: global_config, sftp_profiles, test_users, service_accounts, scenarios, scenario_steps, test_steps")
+                else:
+                    self._add_progress("⚠️ Database sanitization failed - check manually")
+            finally:
+                os.chdir(original_cwd)
+                
+        except Exception as e:
+            self._add_progress(f"❌ Database sanitization error: {str(e)}")
+            self._add_progress("🚨 WARNING: Database may contain sensitive data!")
     
     def _copy_release_url(self):
         """Copy release URL to clipboard"""
