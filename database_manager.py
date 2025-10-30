@@ -310,14 +310,46 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS tes070_versions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
-                rice_profile_id TEXT NOT NULL,
+                rice_profile_id INTEGER NOT NULL,
                 version_number INTEGER NOT NULL,
                 file_content BLOB NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_by TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (rice_profile_id) REFERENCES rice_profiles (id)
             )
         """)
+        
+        # Migrate existing TES-070 data to use proper rice_profile_id
+        try:
+            # Check if we need to migrate data
+            cursor.execute("SELECT rice_profile_id FROM tes070_versions LIMIT 1")
+            sample = cursor.fetchone()
+            if sample and not str(sample[0]).isdigit():
+                # Migrate text rice_profile_id to integer
+                cursor.execute("""
+                    UPDATE tes070_versions 
+                    SET rice_profile_id = (
+                        SELECT rp.id FROM rice_profiles rp 
+                        WHERE rp.rice_id = tes070_versions.rice_profile_id 
+                        AND rp.user_id = tes070_versions.user_id
+                    )
+                    WHERE EXISTS (
+                        SELECT 1 FROM rice_profiles rp 
+                        WHERE rp.rice_id = tes070_versions.rice_profile_id 
+                        AND rp.user_id = tes070_versions.user_id
+                    )
+                """)
+                # Delete orphaned records that can't be migrated
+                cursor.execute("""
+                    DELETE FROM tes070_versions 
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM rice_profiles rp 
+                        WHERE rp.id = tes070_versions.rice_profile_id
+                    )
+                """)
+        except Exception:
+            pass  # Migration already done or not needed
         
         # Create TES-070 templates table
         cursor.execute("""
@@ -836,11 +868,24 @@ class DatabaseManager:
         """Save TES-070 version and maintain only latest 5 versions"""
         cursor = self.conn.cursor()
         
+        # Convert rice_profile_id to actual database ID if it's a RICE_ID string
+        if isinstance(rice_profile_id, str) and not rice_profile_id.isdigit():
+            cursor.execute("""
+                SELECT id FROM rice_profiles 
+                WHERE user_id = ? AND rice_id = ?
+            """, (self.user_id, rice_profile_id))
+            result = cursor.fetchone()
+            if not result:
+                raise ValueError(f"RICE profile '{rice_profile_id}' not found")
+            rice_profile_id = result[0]
+        
+        rice_profile_id = int(rice_profile_id)
+        
         # Get current version count for this RICE profile
         cursor.execute("""
             SELECT COUNT(*) FROM tes070_versions 
             WHERE user_id = ? AND rice_profile_id = ?
-        """, (self.user_id, str(rice_profile_id)))
+        """, (self.user_id, rice_profile_id))
         version_count = cursor.fetchone()[0]
         
         # If we have 5 versions, delete the oldest one
@@ -853,20 +898,20 @@ class DatabaseManager:
                     WHERE user_id = ? AND rice_profile_id = ? 
                     ORDER BY created_at ASC LIMIT 1
                 )
-            """, (self.user_id, str(rice_profile_id), self.user_id, str(rice_profile_id)))
+            """, (self.user_id, rice_profile_id, self.user_id, rice_profile_id))
         
         # Get next version number
         cursor.execute("""
             SELECT COALESCE(MAX(version_number), 0) + 1 FROM tes070_versions 
             WHERE user_id = ? AND rice_profile_id = ?
-        """, (self.user_id, str(rice_profile_id)))
+        """, (self.user_id, rice_profile_id))
         version_number = cursor.fetchone()[0]
         
         # Insert new version
         cursor.execute("""
             INSERT INTO tes070_versions (user_id, rice_profile_id, version_number, file_content, created_by)
             VALUES (?, ?, ?, ?, ?)
-        """, (self.user_id, str(rice_profile_id), version_number, file_content, created_by))
+        """, (self.user_id, rice_profile_id, version_number, file_content, created_by))
         
         self.conn.commit()
         return cursor.lastrowid
@@ -874,12 +919,26 @@ class DatabaseManager:
     def get_tes070_versions(self, rice_profile_id):
         """Get all TES-070 versions for a RICE profile (latest 5)"""
         cursor = self.conn.cursor()
+        
+        # Convert rice_profile_id to actual database ID if it's a RICE_ID string
+        if isinstance(rice_profile_id, str) and not rice_profile_id.isdigit():
+            cursor.execute("""
+                SELECT id FROM rice_profiles 
+                WHERE user_id = ? AND rice_id = ?
+            """, (self.user_id, rice_profile_id))
+            result = cursor.fetchone()
+            if not result:
+                return []
+            rice_profile_id = result[0]
+        
+        rice_profile_id = int(rice_profile_id)
+        
         cursor.execute("""
             SELECT id, version_number, created_at, created_by
             FROM tes070_versions 
             WHERE user_id = ? AND rice_profile_id = ?
             ORDER BY created_at DESC
-        """, (self.user_id, str(rice_profile_id)))
+        """, (self.user_id, rice_profile_id))
         return cursor.fetchall()
     
     def get_tes070_content(self, version_id):
