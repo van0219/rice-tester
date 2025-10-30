@@ -683,43 +683,50 @@ Do you want to proceed with the update check?"""
         button_pady = int(10 * getattr(self, 'scale_factor', 1.0))
         button_spacing = int(5 * getattr(self, 'scale_factor', 1.0))
         
+        # Auto-close wrapper function
+        def auto_close_wrapper(original_command):
+            def wrapper():
+                original_command()
+                tools_popup.after(1000, tools_popup.destroy)  # Close after 1 second
+            return wrapper
+        
         tk.Button(content_frame, text="📈 Performance Optimizer", font=button_font,
                  bg='#10b981', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.run_performance_optimizer).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.run_performance_optimizer)).pack(fill="x", pady=button_spacing)
         
         tk.Button(content_frame, text="🐙 GitHub Integration", font=button_font,
                  bg='#6f42c1', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_github_integration).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_github_integration)).pack(fill="x", pady=button_spacing)
         
         # Phase 2 Enhancement Tools
         tk.Button(content_frame, text="🚀 Smart Execution", font=button_font,
                  bg='#3b82f6', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_smart_execution).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_smart_execution)).pack(fill="x", pady=button_spacing)
         
         tk.Button(content_frame, text="📊 Advanced Reporting", font=button_font,
                  bg='#8b5cf6', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_advanced_reporting).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_advanced_reporting)).pack(fill="x", pady=button_spacing)
         
         tk.Button(content_frame, text="⚙️ Performance Monitor", font=button_font,
                  bg='#f59e0b', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_performance_monitor).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_performance_monitor)).pack(fill="x", pady=button_spacing)
         
         tk.Button(content_frame, text="👥 Team Collaboration", font=button_font,
                  bg='#10b981', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_team_collaboration).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_team_collaboration)).pack(fill="x", pady=button_spacing)
         
         # Phase 3 Enhancement Tools
         tk.Button(content_frame, text="🤖 Smart Test Generator", font=button_font,
                  bg='#ec4899', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_smart_test_generator).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_smart_test_generator)).pack(fill="x", pady=button_spacing)
         
         tk.Button(content_frame, text="🎨 Visual Designer", font=button_font,
                  bg='#06b6d4', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_visual_designer).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_visual_designer)).pack(fill="x", pady=button_spacing)
         
         tk.Button(content_frame, text="🏢 Enterprise Dashboard", font=button_font,
                  bg='#7c3aed', fg='#ffffff', relief='flat', padx=button_padx, pady=button_pady,
-                 cursor='hand2', bd=0, command=self.show_enterprise_dashboard).pack(fill="x", pady=button_spacing)
+                 cursor='hand2', bd=0, command=auto_close_wrapper(self.show_enterprise_dashboard)).pack(fill="x", pady=button_spacing)
         
         close_font = getattr(self, 'fonts', {}).get('button', ('Segoe UI', 10, 'bold'))
         close_pady = int(8 * getattr(self, 'scale_factor', 1.0))
@@ -772,7 +779,7 @@ Do you want to proceed with the update check?"""
     def show_smart_execution(self):
         """Show smart execution dialog"""
         try:
-            from Temp.smart_execution import SmartExecutionManager
+            from smart_execution import SmartExecutionManager
             smart_manager = SmartExecutionManager(self.db_path, self.selenium_manager)
             smart_manager.show_smart_execution_dialog(self.root)
         except ImportError as e:
@@ -783,7 +790,7 @@ Do you want to proceed with the update check?"""
     def show_advanced_reporting(self):
         """Show advanced reporting dialog"""
         try:
-            from Temp.advanced_reporting import AdvancedReportingManager
+            from advanced_reporting import AdvancedReportingManager
             reporting_manager = AdvancedReportingManager(self.db_manager.db_path)
             reporting_manager.show_advanced_reporting_dialog(self.root)
         except ImportError as e:
@@ -794,7 +801,7 @@ Do you want to proceed with the update check?"""
     def show_performance_monitor(self):
         """Show performance monitor"""
         try:
-            from Temp.performance_monitor import PerformanceMonitor
+            from performance_monitor import PerformanceMonitor
             perf_monitor = PerformanceMonitor(self.db_manager.db_path)
             perf_monitor.show_performance_monitor(self.root)
         except ImportError as e:
@@ -805,7 +812,7 @@ Do you want to proceed with the update check?"""
     def show_team_collaboration(self):
         """Show team collaboration dialog"""
         try:
-            from Temp.team_collaboration import TeamCollaborationManager
+            from team_collaboration import TeamCollaborationManager
             collab_manager = TeamCollaborationManager(self.db_manager.db_path)
             collab_manager.show_team_collaboration_dialog(self.root)
         except ImportError as e:
@@ -816,7 +823,7 @@ Do you want to proceed with the update check?"""
     def show_smart_test_generator(self):
         """Show smart test generator dialog"""
         try:
-            from Temp.ai_test_generator import AITestGenerator
+            from ai_test_generator import AITestGenerator
             smart_generator = AITestGenerator(self.db_manager.db_path, self.selenium_manager)
             smart_generator.show_smart_generator_dialog(self.root)
         except ImportError as e:
@@ -827,7 +834,7 @@ Do you want to proceed with the update check?"""
     def show_visual_designer(self):
         """Show visual test designer dialog"""
         try:
-            from Temp.visual_test_designer import VisualTestDesigner
+            from visual_test_designer import VisualTestDesigner
             visual_designer = VisualTestDesigner(self.db_manager.db_path)
             visual_designer.show_visual_designer_dialog(self.root)
         except ImportError as e:
@@ -838,7 +845,7 @@ Do you want to proceed with the update check?"""
     def show_enterprise_dashboard(self):
         """Show enterprise dashboard"""
         try:
-            from Temp.enterprise_dashboard import EnterpriseDashboard
+            from enterprise_dashboard import EnterpriseDashboard
             dashboard = EnterpriseDashboard(self.db_manager.db_path, self.user)
             dashboard.show_enterprise_dashboard(self.root)
         except ImportError as e:
