@@ -5,7 +5,7 @@ from tkinter import ttk
 
 def center_dialog(dialog, width=None, height=None):
     """Enhanced center dialog that doesn't hide existing forms"""
-    from Temp.enhanced_popup_system import enhanced_center_dialog
+    from enhanced_popup_system import enhanced_center_dialog
     enhanced_center_dialog(dialog, width, height, modal=False)
 
 def configure_smooth_styles():
@@ -179,7 +179,7 @@ def adjust_color(color, amount):
 
 def create_popup(root, title, message, status):
     """Create a reusable popup window with consistent styling"""
-    from Temp.enhanced_popup_system import create_enhanced_popup
+    from enhanced_popup_system import create_enhanced_popup
     return create_enhanced_popup(root, title, message, status, modal=False)
     
     # Status icon and colors
