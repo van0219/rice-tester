@@ -283,7 +283,7 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
         summary_row.cells[4].text = str(failed_tests)
         summary_row.cells[5].text = f"{(passed_tests/total_tests*100):.0f}%" if total_tests > 0 else "0%"
         
-        # FINAL FIX: Process document systematically
+        # FINAL FIX: Process document systematically - populate ALL FR sections
         
         # Step 1: Replace all "Automated testing for Asset Accounts Extract" with scenario descriptions
         for para in doc.paragraphs:
@@ -291,12 +291,33 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
                 if scenarios:
                     para.text = scenarios[0][2]  # Use first scenario description
         
-        # Step 2: Replace <Steps and Screenshots> with actual steps (only first occurrence)
-        steps_replaced = False
+        # Step 2: Replace <Steps and Screenshots> with actual steps for EACH FR section
         for para in doc.paragraphs:
-            if '<Steps and Screenshots>' in para.text and not steps_replaced:
-                if scenarios:
-                    rice_prof, scenario_num, description, result, executed_at = scenarios[0]
+            if '<Steps and Screenshots>' in para.text:
+                # Determine which FR section this is by looking at preceding paragraphs
+                fr_section = None
+                scenario_index = 0
+                
+                # Look backwards to find the FR section header
+                para_index = list(doc.paragraphs).index(para)
+                for i in range(para_index - 1, -1, -1):
+                    prev_para = doc.paragraphs[i]
+                    if prev_para.text.startswith('FR 1.1'):
+                        fr_section = 'FR 1.1'
+                        scenario_index = 0
+                        break
+                    elif prev_para.text.startswith('FR 1.2'):
+                        fr_section = 'FR 1.2'
+                        scenario_index = 1
+                        break
+                    elif prev_para.text.startswith('FR 1.3'):
+                        fr_section = 'FR 1.3'
+                        scenario_index = 2
+                        break
+                
+                # Only populate if we have a scenario for this FR section
+                if fr_section and scenario_index < len(scenarios):
+                    rice_prof, scenario_num, description, result, executed_at = scenarios[scenario_index]
                     
                     # Get steps from database
                     cursor.execute("""
@@ -320,7 +341,6 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
                     if steps_data:
                         # Build steps content with actual screenshots
                         steps_content = "\n\nTEST EXECUTION STEPS:\n\n"
-                        step_num = 1
                         
                         # Filter out wait steps first, then renumber
                         filtered_steps = []
@@ -335,114 +355,16 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
                                 steps_content += "[Screenshot will be inserted here]\n"
                             steps_content += "\n"
                         
-                        # Replace the placeholder text first
-                        para.text = para.text.replace('<Steps and Screenshots>', steps_content)
-                        
-                        # Now add actual screenshots after the text
-                        try:
-                            import base64
-                            from io import BytesIO
-                            from docx.shared import Inches
-                            
-                            for i, (step_desc, screenshot_b64) in enumerate(filtered_steps, 1):
-                                if screenshot_b64:
-                                    try:
-                                        # Decode screenshot
-                                        img_data = base64.b64decode(screenshot_b64)
-                                        img_stream = BytesIO(img_data)
-                                        
-                                        # Add new paragraph after current one for screenshot
-                                        new_para = para._element.getparent().insert(
-                                            para._element.getparent().index(para._element) + 1,
-                                            para._element.getparent().makeelement('w:p')
-                                        )
-                                        
-                                        # Add screenshot to new paragraph
-                                        from docx.text.paragraph import Paragraph
-                                        screenshot_para = Paragraph(new_para, para._element.getparent())
-                                        run = screenshot_para.add_run()
-                                        run.add_picture(img_stream, width=Inches(3))
-                                        
-                                        # Add caption
-                                        caption_para = para._element.getparent().insert(
-                                            para._element.getparent().index(new_para) + 1,
-                                            para._element.getparent().makeelement('w:p')
-                                        )
-                                        caption_p = Paragraph(caption_para, para._element.getparent())
-                                        caption_p.add_run(f"Screenshot for Step {i}")
-                                        
-                                    except Exception as e:
-                                        print(f"Failed to add screenshot for step {step_num}: {e}")
-                                    
-                                    
-                        except Exception as e:
-                            print(f"Screenshot processing error: {e}")
-                        
                         steps_content += f"\nResult: {result}\nExecution Date: {executed_at or 'Not recorded'}"
                         para.text = para.text.replace('<Steps and Screenshots>', steps_content)
-                        steps_replaced = True
                     else:
                         para.text = para.text.replace('<Steps and Screenshots>', '\n\nNo detailed steps recorded for this scenario.\nTest executed via automated framework.')
-                        steps_replaced = True
-            elif '<Steps and Screenshots>' in para.text:
-                # Remove other occurrences
-                para.text = para.text.replace('<Steps and Screenshots>', '')
+                else:
+                    # Remove placeholder if no corresponding scenario
+                    para.text = para.text.replace('<Steps and Screenshots>', '')
         
-        # Step 3: Remove unused FR sections dynamically
+        # Step 3: Remove unused FR sections dynamically (only if fewer scenarios than FR sections)
         if len(scenarios) < 3:
-            fr_sections_to_remove = []
-            if len(scenarios) == 1:
-                fr_sections_to_remove = ['FR 1.2', 'FR 1.3']
-            elif len(scenarios) == 2:
-                fr_sections_to_remove = ['FR 1.3']
-            
-            # Remove from TOC first
-            toc_paragraphs_to_remove = []
-            for i, para in enumerate(doc.paragraphs):
-                if para.style.name == 'toc 2':
-                    for fr_to_remove in fr_sections_to_remove:
-                        if para.text.startswith(fr_to_remove):
-                            toc_paragraphs_to_remove.append(i)
-                            break
-            
-            # Remove TOC entries
-            for para_index in reversed(toc_paragraphs_to_remove):
-                p = doc.paragraphs[para_index]
-                p._element.getparent().remove(p._element)
-            
-            # Remove from content sections
-            paragraphs_to_remove = []
-            i = 0
-            while i < len(doc.paragraphs):
-                para = doc.paragraphs[i]
-                
-                # Check if this FR should be removed
-                should_remove = False
-                for fr_to_remove in fr_sections_to_remove:
-                    if para.text.startswith(fr_to_remove):
-                        should_remove = True
-                        break
-                
-                if should_remove:
-                    # Mark this FR and content until next FR or section
-                    j = i
-                    while j < len(doc.paragraphs):
-                        if j > i and (doc.paragraphs[j].text.startswith('FR ') or doc.paragraphs[j].text.startswith('4')):
-                            break
-                        paragraphs_to_remove.append(j)
-                        j += 1
-                    i = j - 1
-                i += 1
-            
-            # Remove content paragraphs
-            for para_index in reversed(sorted(set(paragraphs_to_remove))):
-                if para_index < len(doc.paragraphs):
-                    p = doc.paragraphs[para_index]
-                    p._element.getparent().remove(p._element)
-        
-        # Second pass: remove unused FR sections completely
-        if len(scenarios) < 3:  # Only remove if we have fewer than 3 scenarios
-            # Identify FR sections to remove based on scenario count
             fr_sections_to_remove = []
             if len(scenarios) == 1:
                 fr_sections_to_remove = ['FR 1.2', 'FR 1.3']
@@ -475,8 +397,8 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
                         # Mark this FR section and all its content for removal
                         j = i
                         while j < len(doc.paragraphs):
-                            # Stop when we hit the next FR section or end of document
-                            if j > i and doc.paragraphs[j].text.startswith('FR ') and doc.paragraphs[j].style.name != 'toc 2':
+                            # Stop when we hit the next FR section or section 4
+                            if j > i and (doc.paragraphs[j].text.startswith('FR ') or doc.paragraphs[j].text.startswith('4\t')):
                                 break
                             paragraphs_to_remove.append(j)
                             j += 1
@@ -487,9 +409,7 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
             # Remove content paragraphs in reverse order to maintain indices
             for para_index in reversed(sorted(set(paragraphs_to_remove))):
                 if para_index < len(doc.paragraphs):
-                    # Get the paragraph element
                     p = doc.paragraphs[para_index]
-                    # Remove the paragraph element from its parent
                     p._element.getparent().remove(p._element)
         
         # Save to database only
