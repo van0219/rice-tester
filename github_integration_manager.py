@@ -335,7 +335,13 @@ class GitHubIntegrationManager:
         step4_btn = tk.Button(actions_frame, text="4️⃣ Create Release", font=('Segoe UI', 10, 'bold'), 
                              bg='#cf222e', fg='#ffffff', relief='flat', padx=15, pady=8, 
                              cursor='hand2', bd=0, command=self._create_release)
-        step4_btn.pack(side="left")
+        step4_btn.pack(side="left", padx=(0, 10))
+        
+        # Step 5: Compare & Pull Files
+        step5_btn = tk.Button(actions_frame, text="5️⃣ Compare & Pull", font=('Segoe UI', 10, 'bold'), 
+                             bg='#0969da', fg='#ffffff', relief='flat', padx=15, pady=8, 
+                             cursor='hand2', bd=0, command=self._compare_and_pull_files)
+        step5_btn.pack(side="left")
         
         # Release Information section
         release_frame = tk.Frame(parent, bg='#e0f2fe', relief='solid', bd=1, padx=20, pady=15)
@@ -590,7 +596,7 @@ class GitHubIntegrationManager:
             # Add essential non-Python files
             essential_files = [
                 'requirements.txt', 'README.md', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat',
-                'infor_logo.ico', 'fsm_tester.db', 'version.json', 
+                'infor_logo.ico', 'infor_logo.png', 'infor_logo_from_ico.png', 'fsm_tester.db', 'version.json', 
                 '.github_workflows_rice-tester-ci.yml', 'github_json.config'
             ]
             
@@ -728,11 +734,13 @@ class GitHubIntegrationManager:
                     self._add_progress("✅ CI/CD pipeline configured successfully!")
                     self.show_popup("CI/CD Setup Complete", "GitHub Actions pipeline configured successfully!", "success")
                 else:
-                    self._add_progress(f"❌ Failed to setup CI/CD: {response.status_code}")
-                    self.show_popup("CI/CD Error", "Failed to setup CI/CD pipeline.", "error")
+                    error_details = response.json() if response.content else {}
+                    error_msg = error_details.get('message', f'HTTP {response.status_code}')
+                    self._add_progress(f"❌ Failed to setup CI/CD: {error_msg}")
+                    self.show_popup("CI/CD Error", f"Failed to setup CI/CD pipeline.\n\nError: {error_msg}\nStatus: {response.status_code}", "error")
             else:
-                self._add_progress("❌ CI/CD workflow file not found")
-                self.show_popup("File Not Found", "CI/CD workflow file not found.", "error")
+                self._add_progress(f"❌ CI/CD workflow file not found at: {workflow_path}")
+                self.show_popup("File Not Found", f"CI/CD workflow file not found.\n\nExpected location: {workflow_path}\n\nPlease ensure the workflow file exists.", "error")
                 
         except Exception as e:
             self._add_progress(f"❌ CI/CD setup error: {str(e)}")
@@ -948,8 +956,288 @@ class GitHubIntegrationManager:
             self.show_popup("Copied", "Release URL copied to clipboard!", "success")
         except Exception as e:
             self.show_popup("Error", f"Failed to copy URL: {str(e)}", "error")
+    
+    def _compare_and_pull_files(self):
+        """Compare GitHub files with local files and allow selective pull"""
+        repo_name = self.repo_entry.get().strip()
+        if not repo_name:
+            self.show_popup("Missing Repository Name", "Please enter a repository name.", "warning")
+            return
+        
+        if not self._check_repository_exists(repo_name):
+            self.show_popup("Repository Not Found", f"Repository '{repo_name}' does not exist.", "warning")
+            return
+        
+        self._add_progress("Comparing local files with GitHub repository...")
+        
+        try:
+            headers = {
+                'Authorization': f'token {self.github_token}',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+            
+            # Get repository contents
+            contents_url = f'https://api.github.com/repos/{self.github_username}/{repo_name}/contents'
+            response = requests.get(contents_url, headers=headers, timeout=30)
+            
+            if response.status_code != 200:
+                self.show_popup("Error", f"Failed to fetch repository contents: {response.status_code}", "error")
+                return
+            
+            github_files = response.json()
+            local_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # Find files that exist in GitHub but not locally
+            missing_files = []
+            outdated_files = []
+            
+            for file_info in github_files:
+                if file_info['type'] == 'file':
+                    filename = file_info['name']
+                    local_path = os.path.join(local_dir, filename)
+                    
+                    if not os.path.exists(local_path):
+                        missing_files.append({
+                            'name': filename,
+                            'download_url': file_info['download_url'],
+                            'size': file_info['size'],
+                            'status': 'Missing locally'
+                        })
+                    else:
+                        # Check if file is different (basic size comparison)
+                        local_size = os.path.getsize(local_path)
+                        if local_size != file_info['size']:
+                            outdated_files.append({
+                                'name': filename,
+                                'download_url': file_info['download_url'],
+                                'size': file_info['size'],
+                                'local_size': local_size,
+                                'status': 'Different'
+                            })
+            
+            all_files = missing_files + outdated_files
+            
+            if not all_files:
+                self.show_popup("Up to Date", "All files are up to date with GitHub repository.", "success")
+                return
+            
+            # Show file comparison dialog
+            self._show_file_comparison_dialog(all_files)
+            
+        except Exception as e:
+            self._add_progress(f"❌ Error comparing files: {str(e)}")
+            self.show_popup("Error", f"Error comparing files: {str(e)}", "error")
+    
+    def _show_file_comparison_dialog(self, files):
+        """Show dialog for comparing and selecting files to pull"""
+        dialog = create_enhanced_dialog(None, "📥 Compare & Pull Files", 800, 600, modal=False)
+        dialog.resizable(True, True)
+        
+        try:
+            dialog.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Header
+        header_frame = tk.Frame(dialog, bg='#0969da', height=60)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text="📥 File Comparison & Selective Pull", 
+                font=('Segoe UI', 16, 'bold'), bg='#0969da', fg='#ffffff').pack(expand=True)
+        
+        # Content
+        content_frame = tk.Frame(dialog, bg='#ffffff', padx=20, pady=20)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Instructions
+        tk.Label(content_frame, text="Select files to download from GitHub:", 
+                font=('Segoe UI', 12, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 10))
+        
+        # File list with checkboxes
+        list_frame = tk.Frame(content_frame, bg='#ffffff')
+        list_frame.pack(fill="both", expand=True, pady=(0, 20))
+        
+        # Scrollable frame
+        canvas = tk.Canvas(list_frame, bg='#ffffff')
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg='#ffffff')
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Add mouse wheel scrolling
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas.bind("<MouseWheel>", on_mousewheel)
+        scrollable_frame.bind("<MouseWheel>", on_mousewheel)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # File checkboxes
+        self.file_vars = {}
+        for i, file_info in enumerate(files):
+            file_frame = tk.Frame(scrollable_frame, bg='#f8f9fa', relief='solid', bd=1, padx=10, pady=8)
+            file_frame.pack(fill="x", pady=2)
+            
+            # Checkbox
+            var = tk.BooleanVar(value=True)  # Default selected
+            self.file_vars[file_info['name']] = {'var': var, 'info': file_info}
+            
+            checkbox = tk.Checkbutton(file_frame, variable=var, bg='#f8f9fa')
+            checkbox.pack(side="left")
+            
+            # File info
+            info_frame = tk.Frame(file_frame, bg='#f8f9fa')
+            info_frame.pack(side="left", fill="x", expand=True, padx=(10, 0))
+            
+            # File name and status
+            name_label = tk.Label(info_frame, text=file_info['name'], 
+                                 font=('Segoe UI', 10, 'bold'), bg='#f8f9fa')
+            name_label.pack(anchor="w")
+            
+            # Status and size info
+            status_color = '#dc3545' if file_info['status'] == 'Missing' else '#fd7e14'
+            status_text = f"Status: {file_info['status']} | GitHub: {file_info['size']} bytes"
+            if 'local_size' in file_info:
+                status_text += f" | Local: {file_info['local_size']} bytes"
+            
+            status_label = tk.Label(info_frame, text=status_text, 
+                                   font=('Segoe UI', 9), fg=status_color, bg='#f8f9fa')
+            status_label.pack(anchor="w")
+        
+        # Buttons
+        btn_frame = tk.Frame(content_frame, bg='#ffffff')
+        btn_frame.pack(fill="x")
+        
+        # Select/Deselect All
+        def select_all():
+            for file_data in self.file_vars.values():
+                file_data['var'].set(True)
+        
+        def deselect_all():
+            for file_data in self.file_vars.values():
+                file_data['var'].set(False)
+        
+        tk.Button(btn_frame, text="Select All", font=('Segoe UI', 10), 
+                 bg='#28a745', fg='#ffffff', relief='flat', padx=15, pady=8,
+                 cursor='hand2', bd=0, command=select_all).pack(side="left", padx=(0, 5))
+        
+        tk.Button(btn_frame, text="Deselect All", font=('Segoe UI', 10), 
+                 bg='#6c757d', fg='#ffffff', relief='flat', padx=15, pady=8,
+                 cursor='hand2', bd=0, command=deselect_all).pack(side="left", padx=5)
+        
+        # Save comparison report
+        def save_comparison():
+            """Save comparison results to file"""
+            try:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                report_file = f"github_comparison_report_{timestamp}.txt"
+                
+                with open(report_file, 'w', encoding='utf-8') as f:
+                    f.write(f"GitHub Repository Comparison Report\n")
+                    f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write(f"Repository: {self.github_username}/{self.repo_entry.get().strip()}\n")
+                    f.write("=" * 60 + "\n\n")
+                    
+                    # Count files by status
+                    missing_count = len([f for f in files if f['status'] == 'Missing'])
+                    different_count = len([f for f in files if f['status'] == 'Different'])
+                    
+                    f.write(f"SUMMARY:\n")
+                    f.write(f"- Missing files: {missing_count}\n")
+                    f.write(f"- Different files: {different_count}\n")
+                    f.write(f"- Total files to review: {len(files)}\n\n")
+                    
+                    # List all files with details
+                    for file_info in files:
+                        f.write(f"FILE: {file_info['name']}\n")
+                        f.write(f"Status: {file_info['status']}\n")
+                        f.write(f"GitHub size: {file_info['size']} bytes\n")
+                        if 'local_size' in file_info:
+                            f.write(f"Local size: {file_info['local_size']} bytes\n")
+                        f.write("-" * 40 + "\n\n")
+                
+                self.show_popup("Success", f"Comparison report saved as:\n{report_file}\n\nYou can now review this file and ask IQ to analyze what should be pulled.", "success")
+                
+            except Exception as e:
+                self.show_popup("Error", f"Failed to save comparison report: {e}", "error")
+        
+        # Pull selected files
+        def pull_selected():
+            selected_files = []
+            for filename, file_data in self.file_vars.items():
+                if file_data['var'].get():
+                    selected_files.append(file_data['info'])
+            
+            if not selected_files:
+                self.show_popup("No Selection", "Please select at least one file to pull.", "warning")
+                return
+            
+            dialog.destroy()
+            self._pull_selected_files(selected_files)
+        
+        tk.Button(btn_frame, text="💾 Save Report", font=('Segoe UI', 10), 
+                 bg='#3b82f6', fg='#ffffff', relief='flat', padx=15, pady=8,
+                 cursor='hand2', bd=0, command=save_comparison).pack(side="right", padx=(10, 5))
+        
+        tk.Button(btn_frame, text="📥 Pull Selected Files", font=('Segoe UI', 11, 'bold'), 
+                 bg='#0969da', fg='#ffffff', relief='flat', padx=20, pady=10,
+                 cursor='hand2', bd=0, command=pull_selected).pack(side="right", padx=5)
+        
+        tk.Button(btn_frame, text="Cancel", font=('Segoe UI', 10), 
+                 bg='#6c757d', fg='#ffffff', relief='flat', padx=15, pady=8,
+                 cursor='hand2', bd=0, command=dialog.destroy).pack(side="right", padx=5)
+    
+    def _pull_selected_files(self, selected_files):
+        """Download selected files from GitHub"""
+        self._add_progress(f"Downloading {len(selected_files)} selected files...")
+        
+        local_dir = os.path.dirname(os.path.abspath(__file__))
+        success_count = 0
+        failed_files = []
+        
+        for file_info in selected_files:
+            try:
+                self._add_progress(f"📥 Downloading {file_info['name']}...")
+                
+                # Download file content
+                response = requests.get(file_info['download_url'], timeout=30)
+                if response.status_code == 200:
+                    # Save to local file
+                    local_path = os.path.join(local_dir, file_info['name'])
+                    with open(local_path, 'wb') as f:
+                        f.write(response.content)
+                    
+                    success_count += 1
+                    self._add_progress(f"✅ Downloaded {file_info['name']}")
+                else:
+                    failed_files.append(file_info['name'])
+                    self._add_progress(f"❌ Failed to download {file_info['name']}")
+                    
+            except Exception as e:
+                failed_files.append(file_info['name'])
+                self._add_progress(f"❌ Error downloading {file_info['name']}: {str(e)}")
+        
+        # Show results
+        if failed_files:
+            self.show_popup("Partial Success", 
+                           f"Downloaded {success_count} files successfully.\n\n"
+                           f"Failed to download {len(failed_files)} files:\n{', '.join(failed_files)}", 
+                           "warning")
+        else:
+            self.show_popup("Success", 
+                           f"Successfully downloaded {success_count} files from GitHub!", 
+                           "success")
 
 if __name__ == "__main__":
     print("GitHub Integration Manager for RICE Tester")
     print("Secure access control - Only for authorized users")
-    print("Features: Repository creation, code upload, CI/CD setup, releases")
+    print("Features: Repository creation, code upload, CI/CD setup, releases, file comparison & pull")
