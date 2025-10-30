@@ -2,21 +2,25 @@
 # -*- coding: utf-8 -*-
 import sqlite3
 import os
+import time
 from datetime import datetime
 from docx import Document
 from docx.shared import Inches
 import tkinter as tk
 from tkinter import filedialog
 from database_manager import DatabaseManager
+from rice_dialogs import center_dialog
+from io import BytesIO
 
 def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_manager=None):
     """Generate TES-070 and save to database only (no file download)"""
     
+    # Always define start_time at function start
+    start_time = time.time()
+    
     # Show loading dialog
     loading_popup = None
     if show_popup:
-        import tkinter as tk
-        from rice_dialogs import center_dialog
         
         # Create loading dialog
         loading_popup = tk.Toplevel()
@@ -72,13 +76,8 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
         # Start animation
         animate_dots()
         loading_popup.update()
-        
-        # Record start time for minimum 5-second display
-        import time
-        start_time = time.time()
     
     try:
-        import os  # Ensure os is available in this scope
         # Database path
         db_path = r"d:\AmazonQ\InforQ\RICE_Tester\fsm_tester.db"
         template_path = r"d:\AmazonQ\InforQ\RICE_Tester\TES-070-Template\TES-070_Custom_Extension_Unit_Test_Results_v2.0.docx"
@@ -415,7 +414,6 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
                 loading_popup.destroy()
             
             try:
-                from io import BytesIO
                 buffer = BytesIO()
                 doc.save(buffer)
                 buffer.seek(0)
