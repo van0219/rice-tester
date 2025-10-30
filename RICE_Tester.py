@@ -57,6 +57,54 @@ def main():
             
             # Handle window close to destroy all popups
             def on_closing():
+                # Show confirmation dialog
+                confirm_popup = tk.Toplevel(root)
+                confirm_popup.title("Exit RICE Tester")
+                center_dialog(confirm_popup, 400, 200)
+                confirm_popup.configure(bg='#ffffff')
+                confirm_popup.resizable(False, False)
+                confirm_popup.grab_set()
+                
+                try:
+                    confirm_popup.iconbitmap("infor_logo.ico")
+                except:
+                    pass
+                
+                # Header
+                header_frame = tk.Frame(confirm_popup, bg='#f59e0b', height=50)
+                header_frame.pack(fill="x")
+                header_frame.pack_propagate(False)
+                
+                tk.Label(header_frame, text="⚠️ Exit Application", 
+                        font=('Segoe UI', 14, 'bold'), bg='#f59e0b', fg='#ffffff').pack(expand=True)
+                
+                # Content
+                content_frame = tk.Frame(confirm_popup, bg='#ffffff', padx=20, pady=20)
+                content_frame.pack(fill="both", expand=True)
+                
+                tk.Label(content_frame, text="Are you sure you want to exit RICE Tester?", 
+                        font=('Segoe UI', 11), bg='#ffffff').pack(pady=(0, 20))
+                
+                # Buttons
+                btn_frame = tk.Frame(content_frame, bg='#ffffff')
+                btn_frame.pack()
+                
+                def confirm_exit():
+                    confirm_popup.destroy()
+                    perform_exit()
+                
+                def cancel_exit():
+                    confirm_popup.destroy()
+                
+                tk.Button(btn_frame, text="Yes, Exit", font=('Segoe UI', 10, 'bold'), 
+                         bg='#ef4444', fg='#ffffff', relief='flat', padx=15, pady=6, 
+                         cursor='hand2', bd=0, command=confirm_exit).pack(side="left", padx=(0, 10))
+                
+                tk.Button(btn_frame, text="Cancel", font=('Segoe UI', 10, 'bold'), 
+                         bg='#6b7280', fg='#ffffff', relief='flat', padx=15, pady=6, 
+                         cursor='hand2', bd=0, command=cancel_exit).pack(side="left")
+            
+            def perform_exit():
                 try:
                     # Force close all toplevel windows (popups) recursively
                     def destroy_all_toplevels():
