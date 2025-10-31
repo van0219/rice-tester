@@ -27,7 +27,7 @@ import os
 import time
 import threading
 from datetime import datetime
-from ui_components import configure_smooth_styles, create_popup
+# Removed ui_components import to fix circular dependency
 
 # 🚀 5-STAR ENHANCEMENTS
 try:
@@ -101,7 +101,7 @@ class AuthSystem:
         
         self.root = tk.Tk()
         self.root.title("RICE Tester - Login")
-        self.root.configure(bg='#F5F6FA')
+        self.root.configure(bg='#f3f4f6')
         self.root.resizable(True, True)
         
         # Start in full screen (maximized)
@@ -131,13 +131,12 @@ class AuthSystem:
             pass
         
         # Configure enhanced styles
-        configure_smooth_styles()
         self.setup_enhanced_styles()
         
         self.setup_modern_ui()
         
-        # Set static navy background color
-        self.main_frame.configure(bg='#1E2A38')
+        # Set light background matching main app
+        self.main_frame.configure(bg='#f3f4f6')
         
         # Allow free dragging - no auto-centering
         # self.root.after(100, lambda: self.center_window() if self.root.state() != 'zoomed' else None)
@@ -184,16 +183,9 @@ class AuthSystem:
 
 
     def setup_modern_ui(self):
-        """🎨 Setup the modern, professional UI with dynamic sizing"""
-        # Get screen dimensions for dynamic sizing
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        
-        # Force consistent large screen layout to prevent size differences after logout
-        self.is_small_screen = False  # Always use large screen layout for consistency
-        
-        # Create main frame with navy background
-        self.main_frame = tk.Frame(self.root, bg='#1E2A38')
+        """🎨 Setup the modern, professional UI matching main app design"""
+        # Create main frame with light background (matching main app)
+        self.main_frame = tk.Frame(self.root, bg='#f3f4f6')
         self.main_frame.pack(fill="both", expand=True)
         
         # Professional header with Infor branding
@@ -206,18 +198,13 @@ class AuthSystem:
         self.setup_infor_footer()
 
     def setup_infor_header(self):
-        """🏢 Professional Infor header with dynamic sizing"""
-        # Dynamic sizing based on screen size
-        header_pady = (15, 10) if self.is_small_screen else (30, 20)
-        title_font = 16
-        subtitle_font = 10
+        """🏢 Professional Infor header matching main app style"""
+        header_frame = tk.Frame(self.main_frame, bg='#f3f4f6')
+        header_frame.pack(fill="x", pady=(20, 15))
         
-        header_frame = tk.Frame(self.main_frame, bg='#1E2A38')
-        header_frame.pack(fill="x", pady=header_pady)
-        
-        # Main title with dynamic font size
+        # Main title matching main app style
         title_label = tk.Label(header_frame, text="🏢 RICE Tester", 
-                              font=('Segoe UI', title_font, 'bold'), bg='#1E2A38', fg='#FFFFFF')
+                              font=('Segoe UI', 16, 'bold'), bg='#f3f4f6', fg='#1f2937')
         title_label.pack()
         
         # Subtitle with version
@@ -231,69 +218,58 @@ class AuthSystem:
             version_text = "v1.0.7"
         
         subtitle_label = tk.Label(header_frame, text=f"FSM Interface Testing Suite - Enterprise Edition {version_text}", 
-                                 font=('Segoe UI', subtitle_font), bg='#1E2A38', fg='#9E9E9E')
+                                 font=('Segoe UI', 10), bg='#f3f4f6', fg='#6b7280')
         subtitle_label.pack(pady=(3, 0))
 
     def setup_infor_login_card(self):
-        """💳 Professional Infor login card with dynamic sizing"""
-        # Dynamic sizing based on screen size
-        container_padx = 80 if self.is_small_screen else 200
-        container_pady = 15 if self.is_small_screen else 30
-        # Expand the actual card panel by 0.5 inch (36px)
-        card_padx = 2 if self.is_small_screen else 32   # Reduced by 18px each side
-        card_pady = 5 if self.is_small_screen else 15   # Reduced by 5px each side
+        """💳 Professional login card with responsive design"""
+        # Responsive card container - adapts to screen size
+        card_container = tk.Frame(self.main_frame, bg='#f3f4f6')
+        card_container.pack(expand=True, fill="both", padx=50, pady=20)
         
-        # Card container with dynamic padding - allow expansion
-        card_container = tk.Frame(self.main_frame, bg='#1E2A38')
-        card_container.pack(expand=True, fill="both", padx=container_padx, pady=container_pady)
+        # Center frame for responsive card sizing
+        center_frame = tk.Frame(card_container, bg='#f3f4f6')
+        center_frame.pack(expand=True)
         
-        # Professional card with dynamic sizing and static background
-        self.card_frame = tk.Frame(card_container, bg='#FFFFFF', relief='solid', bd=2)
-        self.card_frame.pack(anchor="center", padx=card_padx, pady=card_pady)
+        # Professional card with modern shadow effect (simulated with border)
+        self.card_frame = tk.Frame(center_frame, bg='#ffffff', relief='solid', bd=1,
+                                  highlightbackground='#e5e7eb', highlightthickness=1)
+        self.card_frame.pack(anchor="center", padx=20, pady=20)
         
-        # Card header with dynamic height - primary orange
-        header_height = 60 if self.is_small_screen else 80
-        card_header = tk.Frame(self.card_frame, bg='#F26A21', height=header_height)
-        card_header.pack(fill="x", padx=0, pady=(0, 0))
+        # Card header with compact height - matching main app blue
+        card_header = tk.Frame(self.card_frame, bg='#3b82f6', height=50)
+        card_header.pack(fill="x")
         card_header.pack_propagate(False)
         
         # Mode toggle buttons
         self.setup_infor_mode_toggle(card_header)
         
-        # Form container with dynamic padding
-        form_padx = 30 if self.is_small_screen else 60
-        form_pady = 10 if self.is_small_screen else 15
-        self.form_container = tk.Frame(self.card_frame, bg='#FFFFFF')
-        self.form_container.pack(fill="x", padx=form_padx, pady=form_pady)
+        # Form container with proper expansion
+        self.form_container = tk.Frame(self.card_frame, bg='#ffffff')
+        self.form_container.pack(fill="x", padx=40, pady=20)
         
         # Setup initial login form
         self.setup_enhanced_login_form()
 
     def setup_infor_mode_toggle(self, parent):
-        """🔄 Professional toggle with dynamic sizing"""
-        toggle_height = 40 if self.is_small_screen else 50
-        toggle_frame = tk.Frame(parent, bg='#F26A21', height=toggle_height)
+        """🔄 Professional toggle matching main app style"""
+        toggle_frame = tk.Frame(parent, bg='#3b82f6', height=50)
         toggle_frame.pack(fill="x")
         toggle_frame.pack_propagate(False)
         
-        # Dynamic toggle button sizing
-        toggle_font = 10 if self.is_small_screen else 12
-        toggle_padx = 20 if self.is_small_screen else 30
-        toggle_pady = 8 if self.is_small_screen else 10
-        
-        # Login button with dynamic sizing (active tab) - primary orange
+        # Login button (active tab) - darker blue
         self.login_toggle = tk.Button(toggle_frame, text="Sign In", 
-                                     font=('Segoe UI', toggle_font, 'bold'),
-                                     bg='#F26A21', fg='#FFFFFF', relief='flat',
-                                     padx=toggle_padx, pady=toggle_pady, cursor='hand2', bd=0,
+                                     font=('Segoe UI', 11, 'bold'),
+                                     bg='#1e40af', fg='#ffffff', relief='flat',
+                                     padx=25, pady=8, cursor='hand2', bd=0,
                                      command=lambda: self.switch_mode('login'))
         self.login_toggle.pack(side="left", fill="both", expand=True)
         
-        # Signup button with dynamic sizing (inactive tab) - neutral gray
+        # Signup button (inactive tab) - matching main app gray
         self.signup_toggle = tk.Button(toggle_frame, text="Sign Up", 
-                                      font=('Segoe UI', toggle_font, 'bold'),
-                                      bg='#9E9E9E', fg='#FFFFFF', relief='flat',
-                                      padx=toggle_padx, pady=toggle_pady, cursor='hand2', bd=0,
+                                      font=('Segoe UI', 11, 'bold'),
+                                      bg='#6b7280', fg='#ffffff', relief='flat',
+                                      padx=25, pady=8, cursor='hand2', bd=0,
                                       command=lambda: self.switch_mode('signup'))
         self.signup_toggle.pack(side="right", fill="both", expand=True)
 
@@ -301,13 +277,13 @@ class AuthSystem:
         """🔄 Switch between login and signup modes with animation"""
         self.current_mode = mode
         
-        # Update toggle buttons with consistent styling
+        # Update toggle buttons with main app styling
         if mode == 'login':
-            self.login_toggle.configure(bg='#F26A21', fg='#FFFFFF')  # Active: primary orange
-            self.signup_toggle.configure(bg='#9E9E9E', fg='#FFFFFF')  # Inactive: neutral gray
+            self.login_toggle.configure(bg='#1e40af', fg='#ffffff')  # Active: darker blue
+            self.signup_toggle.configure(bg='#6b7280', fg='#ffffff')  # Inactive: main app gray
         else:
-            self.login_toggle.configure(bg='#9E9E9E', fg='#FFFFFF')  # Inactive: neutral gray
-            self.signup_toggle.configure(bg='#F26A21', fg='#FFFFFF')  # Active: primary orange
+            self.login_toggle.configure(bg='#6b7280', fg='#ffffff')  # Inactive: main app gray
+            self.signup_toggle.configure(bg='#1e40af', fg='#ffffff')  # Active: darker blue
         
         # Clear and rebuild form
         for widget in self.form_container.winfo_children():
@@ -317,22 +293,20 @@ class AuthSystem:
             self.setup_enhanced_login_form()
         else:
             self.setup_enhanced_signup_form()
+        
+        # Let Tkinter calculate optimal size after content is added
+        self.root.update_idletasks()
 
     def setup_enhanced_login_form(self):
         """🔐 Enhanced login form with modern styling"""
-        # Welcome message matching signup compact sizing
-        welcome_font = 12 if self.is_small_screen else 14
-        subtitle_font = 8 if self.is_small_screen else 9
-        welcome_pady = (5, 2) if self.is_small_screen else (8, 3)
-        subtitle_pady = (0, 5) if self.is_small_screen else (0, 8)
-        
+        # Enhanced welcome message with better typography
         welcome_label = tk.Label(self.form_container, text="Welcome back!", 
-                                font=('Segoe UI', welcome_font, 'bold'), bg='#FFFFFF', fg='#1B2A41')
-        welcome_label.pack(pady=welcome_pady)
+                                font=('Segoe UI', 16, 'bold'), bg='#ffffff', fg='#1f2937')
+        welcome_label.pack(pady=(8, 4))
         
         subtitle_label = tk.Label(self.form_container, text="Sign in to continue to your testing dashboard", 
-                                 font=('Segoe UI', subtitle_font), bg='#FFFFFF', fg='#6C757D')
-        subtitle_label.pack(pady=subtitle_pady)
+                                 font=('Segoe UI', 10), bg='#ffffff', fg='#6b7280')
+        subtitle_label.pack(pady=(0, 16))
         
         # Username field with icon
         self.setup_modern_field("👤 Username", "username_entry")
@@ -360,22 +334,26 @@ class AuthSystem:
         forgot_label.pack(side="right")
         forgot_label.bind('<Button-1>', self.show_forgot_password)
         
-        # Professional login button matching signup sizing
-        btn_font = 10 if self.is_small_screen else 12
-        btn_padx = 25 if self.is_small_screen else 30
-        btn_pady = 8 if self.is_small_screen else 10
-        btn_margin_y = (8, 8) if self.is_small_screen else (10, 10)
-        btn_margin_x = 5 if self.is_small_screen else 10
-        
+        # Modern login button with enhanced styling
         self.login_btn = tk.Button(self.form_container, text="🏢 Sign In", 
-                                  font=('Segoe UI', btn_font, 'bold'),
-                                  bg='#F26A21', fg='#FFFFFF', relief='raised',
-                                  padx=btn_padx, pady=btn_pady, cursor='hand2', bd=2,
-                                  highlightbackground='#D85A1C',
+                                  font=('Segoe UI', 12, 'bold'),
+                                  bg='#1e40af', fg='#ffffff', relief='flat',
+                                  padx=25, pady=12, cursor='hand2', bd=0,
+                                  highlightthickness=0, activebackground='#1d4ed8',
                                   command=self.enhanced_login)
-        # Increase bottom padding by 0.5 inch (36 pixels)
-        btn_margin_y_extended = (btn_margin_y[0], btn_margin_y[1] + 36)
-        self.login_btn.pack(fill="x", pady=btn_margin_y_extended, padx=btn_margin_x)
+        self.login_btn.pack(fill="x", pady=(20, 25), padx=5)
+        
+        # Add hover effects for better UX
+        def on_enter(e):
+            if self.login_btn['state'] != 'disabled':
+                self.login_btn.configure(bg='#1d4ed8')
+        
+        def on_leave(e):
+            if self.login_btn['state'] != 'disabled':
+                self.login_btn.configure(bg='#1e40af')
+        
+        self.login_btn.bind('<Enter>', on_enter)
+        self.login_btn.bind('<Leave>', on_leave)
         
         # Enhanced keyboard shortcuts
         if hasattr(self, 'password_entry'):
@@ -394,25 +372,20 @@ class AuthSystem:
 
     def setup_enhanced_signup_form(self):
         """📝 Enhanced signup form"""
-        # Welcome message with compact sizing for signup
-        welcome_font = 12 if self.is_small_screen else 14
-        subtitle_font = 8 if self.is_small_screen else 9
-        welcome_pady = (5, 2) if self.is_small_screen else (8, 3)
-        subtitle_pady = (0, 5) if self.is_small_screen else (0, 8)
+        # Enhanced welcome message with better typography
+        welcome_label = tk.Label(self.form_container, text="Create Account", 
+                                font=('Segoe UI', 16, 'bold'), bg='#ffffff', fg='#1f2937')
+        welcome_label.pack(pady=(8, 4))
         
-        welcome_label = tk.Label(self.form_container, text="Register", 
-                                font=('Segoe UI', welcome_font, 'bold'), bg='#FFFFFF', fg='#1B2A41')
-        welcome_label.pack(pady=welcome_pady)
-        
-        subtitle_label = tk.Label(self.form_container, text="Create your account to get started", 
-                                 font=('Segoe UI', subtitle_font), bg='#FFFFFF', fg='#6C757D')
-        subtitle_label.pack(pady=subtitle_pady)
+        subtitle_label = tk.Label(self.form_container, text="Create your account to start testing today!!", 
+                                 font=('Segoe UI', 10), bg='#ffffff', fg='#6b7280')
+        subtitle_label.pack(pady=(0, 16))
         
         # Full name field
         self.setup_modern_field("👤 Full Name", "fullname_entry")
         
-        # Company field
-        self.setup_modern_field("🏢 Company", "company_entry")
+        # Project field
+        self.setup_modern_field("📋 Project", "company_entry")
         
         # Username field
         self.setup_modern_field("🆔 Username", "new_username_entry")
@@ -435,51 +408,59 @@ class AuthSystem:
                                     selectcolor='#F26A21', cursor='hand2')
         terms_check.pack()
         
-        # Professional signup button with compact sizing
-        btn_font = 10 if self.is_small_screen else 12
-        btn_padx = 25 if self.is_small_screen else 30
-        btn_pady = 8 if self.is_small_screen else 10
-        btn_margin_y = (8, 8) if self.is_small_screen else (10, 10)
-        btn_margin_x = 5 if self.is_small_screen else 10
-        
+        # Modern signup button with enhanced styling
         self.signup_btn = tk.Button(self.form_container, text="🏢 Create Account", 
-                                   font=('Segoe UI', btn_font, 'bold'),
-                                   bg='#4CAF50', fg='#ffffff', relief='raised',
-                                   padx=btn_padx, pady=btn_pady, cursor='hand2', bd=2,
-                                   highlightbackground='#45A049',
+                                   font=('Segoe UI', 12, 'bold'),
+                                   bg='#10b981', fg='#ffffff', relief='flat',
+                                   padx=25, pady=15, cursor='hand2', bd=0,
+                                   highlightthickness=0, activebackground='#059669',
                                    command=self.enhanced_signup)
-        self.signup_btn.pack(fill="x", pady=btn_margin_y, padx=btn_margin_x)
+        self.signup_btn.pack(fill="x", pady=(20, 25), padx=5, ipady=8)
+        
+        # Add hover effects for better UX
+        def on_enter_signup(e):
+            if self.signup_btn['state'] != 'disabled':
+                self.signup_btn.configure(bg='#059669')
+        
+        def on_leave_signup(e):
+            if self.signup_btn['state'] != 'disabled':
+                self.signup_btn.configure(bg='#10b981')
+        
+        self.signup_btn.bind('<Enter>', on_enter_signup)
+        self.signup_btn.bind('<Leave>', on_leave_signup)
 
     def setup_modern_field(self, label_text, entry_name, show=None):
-        """🎨 Setup professional input field with dynamic sizing"""
-        field_pady = (0, 6) if self.is_small_screen else (0, 8)
-        field_frame = tk.Frame(self.form_container, bg='#FFFFFF')
-        field_frame.pack(fill="x", pady=field_pady)
+        """🎨 Setup modern input field with enhanced UX"""
+        field_frame = tk.Frame(self.form_container, bg='#ffffff')
+        field_frame.pack(fill="x", pady=(0, 12))
         
-        # Compact field sizing for better fit
-        label_font = 8 if self.is_small_screen else 9
-        entry_font = 9
-        entry_pady = 4
-        label_pady = (0, 2) if self.is_small_screen else (0, 3)
-        
-        # Label with dynamic sizing
+        # Modern label with better typography
         label = tk.Label(field_frame, text=label_text, 
-                        font=('Segoe UI', label_font, 'bold'), bg='#FFFFFF', fg='#6C757D')
-        label.pack(anchor="w", pady=label_pady)
+                        font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#374151')
+        label.pack(anchor="w", pady=(0, 4))
         
-        # Entry with dynamic sizing
-        entry = tk.Entry(field_frame, font=('Segoe UI', entry_font), 
-                        bg='#f8f9fa', fg='#1B2A41', relief='solid',
-                        bd=2, highlightthickness=2, highlightcolor='#F26A21',
-                        insertbackground='#F26A21', show=show)
-        entry.pack(fill="x", ipady=entry_pady)
+        # Enhanced entry with modern styling
+        entry = tk.Entry(field_frame, font=('Segoe UI', 11), 
+                        bg='#f9fafb', fg='#1f2937', relief='solid',
+                        bd=1, highlightthickness=2, highlightcolor='#1e40af',
+                        insertbackground='#1e40af', show=show,
+                        highlightbackground='#d1d5db')
+        entry.pack(fill="x", ipady=8)
         
         # Store reference
         setattr(self, entry_name, entry)
         
-        # Add focus effects with new theme colors
-        entry.bind('<FocusIn>', lambda e: entry.configure(highlightbackground='#F26A21'))
-        entry.bind('<FocusOut>', lambda e: entry.configure(highlightbackground='#9E9E9E'))
+        # Enhanced focus effects with smooth transitions
+        def on_focus_in(e):
+            entry.configure(highlightbackground='#1e40af', bg='#ffffff')
+            label.configure(fg='#1e40af')
+        
+        def on_focus_out(e):
+            entry.configure(highlightbackground='#d1d5db', bg='#f9fafb')
+            label.configure(fg='#374151')
+        
+        entry.bind('<FocusIn>', on_focus_in)
+        entry.bind('<FocusOut>', on_focus_out)
 
     def setup_password_strength_meter(self):
         """🔒 Password strength meter with real-time feedback"""
@@ -569,16 +550,13 @@ class AuthSystem:
         self.password_entry.focus()
 
     def setup_infor_footer(self):
-        """📊 Professional Infor footer with dynamic sizing"""
-        footer_pady = (10, 5) if self.is_small_screen else (20, 10)
-        footer_font = 8 if self.is_small_screen else 10
+        """📊 Professional footer matching main app style"""
+        footer_frame = tk.Frame(self.main_frame, bg='#f3f4f6')
+        footer_frame.pack(fill="x", side="bottom", pady=(15, 10))
         
-        footer_frame = tk.Frame(self.main_frame, bg='#f0f0f0')
-        footer_frame.pack(fill="x", side="bottom", pady=footer_pady)
-        
-        # Copyright with dynamic font size
+        # Copyright matching main app colors
         copyright_label = tk.Label(footer_frame, text="© 2025 RICE Tester - Infor FSM Testing Suite", 
-                                  font=('Segoe UI', footer_font), bg='#f0f0f0', fg='#999999')
+                                  font=('Segoe UI', 9), bg='#f3f4f6', fg='#9ca3af')
         copyright_label.pack()
 
     def enhanced_login(self):
@@ -635,15 +613,12 @@ class AuthSystem:
                 else:
                     raise e
             
-            # Show success with analytics
-            if ENHANCED_FEATURES:
-                self.show_login_success_analytics()
-            else:
-                self.show_modern_popup("Success", f"Welcome back, {user[2]}!", "success")
-                self.root.after(1500, self.cleanup_and_exit)
+            # Show loading screen with 3-second delay
+            self.show_loading_screen(user[2])
+            self.root.after(3000, self.cleanup_and_exit)
         else:
             # Reset login button to normal state
-            self.login_btn.configure(text="🏢 Sign In", state='normal', bg='#F26A21')
+            self.login_btn.configure(text="🏢 Sign In", state='normal', bg='#1e40af')
             
             self.show_modern_popup("Error", "Invalid username or password", "error")
             
@@ -656,8 +631,8 @@ class AuthSystem:
 
     def show_infor_login_progress(self):
         """🔄 Show professional login progress animation"""
-        # Disable login button and show progress with Infor styling
-        self.login_btn.configure(text="🔄 Signing In...", state='disabled', bg='#cccccc')
+        # Disable login button and show progress
+        self.login_btn.configure(text="🔄 Signing In...", state='disabled', bg='#9ca3af')
         
         if ENHANCED_FEATURES:
             try:
@@ -665,30 +640,120 @@ class AuthSystem:
             except UnicodeEncodeError:
                 print("Authenticating user credentials...")
 
-    def show_login_success_analytics(self):
-        """📊 Show login success with analytics"""
-        if not ENHANCED_FEATURES:
-            return
-            
-        try:
-            # Calculate session time
-            session_time = time.time() - self.session_start
-            
-            success_panel = Panel.fit(
-                f"[bold green]Welcome back, {self.user['full_name']}![/bold green]\n"
-                f"[blue]Company:[/blue] {self.user['company']}\n"
-                f"[blue]Login Time:[/blue] {session_time:.1f}s\n"
-                f"[blue]Attempts:[/blue] {self.login_attempts}\n"
-                f"[green]Authentication Successful![/green]",
-                title="Login Success",
-                border_style="green"
-            )
-            console.print(success_panel)
-        except UnicodeEncodeError:
-            print(f"Welcome back, {self.user['full_name']}!")
+    def show_loading_screen(self, full_name):
+        """📊 Show dashboard preview loading screen"""
+        # Update login button to show loading
+        self.login_btn.configure(text="⚙️ Launching...", state='disabled', bg='#10b981')
         
-        self.show_modern_popup("Success", f"Welcome back, {self.user['full_name']}!", "success")
-        self.root.after(2000, self.cleanup_and_exit)
+        # Create clean dashboard preview overlay
+        loading_overlay = tk.Toplevel(self.root)
+        loading_overlay.configure(bg='#f3f4f6')
+        loading_overlay.resizable(False, False)
+        loading_overlay.transient(self.root)
+        loading_overlay.overrideredirect(True)  # Remove title bar and decorations
+        loading_overlay.attributes('-topmost', True)  # Ensure it stays on top
+        loading_overlay.lift()  # Bring to front
+        loading_overlay.focus_force()  # Force focus
+        
+        # Dashboard preview frame
+        preview_frame = tk.Frame(loading_overlay, bg='#f3f4f6', padx=30, pady=20)
+        preview_frame.pack(fill="both", expand=True)
+        
+        # Header (simulating app header)
+        header_frame = tk.Frame(preview_frame, bg='#ffffff', relief='solid', bd=1, height=60)
+        header_frame.pack(fill="x", pady=(0, 15))
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text="🏢 RICE Tester", font=('Segoe UI', 14, 'bold'), 
+                bg='#ffffff', fg='#1f2937').pack(side="left", padx=20, pady=15)
+        
+        tk.Label(header_frame, text=f"Welcome, {full_name}!", font=('Segoe UI', 10), 
+                bg='#ffffff', fg='#6b7280').pack(side="right", padx=20, pady=15)
+        
+        # Content area (simulating main interface)
+        content_frame = tk.Frame(preview_frame, bg='#ffffff', relief='solid', bd=1, height=200)
+        content_frame.pack(fill="x")
+        content_frame.pack_propagate(False)
+        
+        # Loading content
+        loading_content = tk.Frame(content_frame, bg='#ffffff')
+        loading_content.pack(expand=True, fill="both", padx=40, pady=40)
+        
+        # Spinner
+        self.spinner_label = tk.Label(loading_content, text="◐", font=('Segoe UI', 20), 
+                                     bg='#ffffff', fg='#1e40af')
+        self.spinner_label.pack(pady=(0, 15))
+        
+        # Loading message
+        self.loading_text = tk.Label(loading_content, text="Initializing dashboard", 
+                                    font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#1f2937')
+        self.loading_text.pack()
+        
+        # Center the overlay
+        loading_overlay.update_idletasks()
+        center_dialog(loading_overlay, 500, 320)
+        
+        # Start animations
+        self.loading_step = 0
+        self.animate_dashboard_loading()
+        
+        # Close overlay after 3 seconds
+        self.root.after(3000, lambda: self.safe_destroy_overlay(loading_overlay))
+        
+        # Store reference
+        self.loading_overlay = loading_overlay
+    
+    def safe_destroy_overlay(self, overlay):
+        """Safely destroy loading overlay"""
+        try:
+            if overlay and overlay.winfo_exists():
+                overlay.destroy()
+        except tk.TclError:
+            pass  # Already destroyed
+    
+    def animate_dashboard_loading(self):
+        """Animate dashboard loading with changing messages and spinner"""
+        try:
+            if not (hasattr(self, 'loading_text') and self.loading_text.winfo_exists()):
+                return
+        except tk.TclError:
+            # Widget was destroyed, stop animation
+            return
+        
+        # Loading messages sequence
+        messages = [
+            "Initializing dashboard",
+            "Loading RICE items", 
+            "Preparing test scenarios",
+            "Setting up workspace",
+            "Almost ready"
+        ]
+        
+        # Spinner animation
+        spinners = ["◐", "◓", "◑", "◒"]
+        
+        # Get current message and add animated dots
+        message_index = (self.loading_step // 4) % len(messages)
+        dot_count = (self.loading_step % 4)
+        dots = "." * dot_count
+        
+        current_message = messages[message_index] + dots
+        current_spinner = spinners[self.loading_step % len(spinners)]
+        
+        # Update UI safely
+        try:
+            self.loading_text.configure(text=current_message)
+            if hasattr(self, 'spinner_label') and self.spinner_label.winfo_exists():
+                self.spinner_label.configure(text=current_spinner)
+        except tk.TclError:
+            # Widget was destroyed, stop animation
+            return
+        
+        self.loading_step += 1
+        
+        # Continue animation every 300ms - only if widgets still exist
+        if hasattr(self, 'root') and self.root.winfo_exists():
+            self.root.after(300, self.animate_dashboard_loading)
 
     def enhanced_signup(self):
         """✨ Enhanced signup with validation"""
@@ -710,8 +775,8 @@ class AuthSystem:
             self.show_modern_popup("Error", "Password is too weak. Please use a stronger password.", "error")
             return
         
-        # Show signup progress with Infor styling
-        self.signup_btn.configure(text="🏢 Creating Account...", state='disabled', bg='#cccccc')
+        # Show signup progress
+        self.signup_btn.configure(text="🏢 Creating Account...", state='disabled', bg='#9ca3af')
         
         self.root.after(500, lambda: self.process_signup(full_name, company, username, password))
 
@@ -728,7 +793,7 @@ class AuthSystem:
         cursor = self.conn.cursor()
         cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
         if cursor.fetchone():
-            self.signup_btn.configure(text="🏢 Create Account", state='normal', bg='#4CAF50')
+            self.signup_btn.configure(text="🏢 Create Account", state='normal', bg='#10b981')
             self.show_modern_popup("Error", "Username already exists. Please choose another.", "error")
             return
         
@@ -762,7 +827,7 @@ class AuthSystem:
         
         # Switch to login mode
         self.root.after(2000, lambda: self.switch_mode('login'))
-        self.signup_btn.configure(text="🏢 Create Account", state='normal', bg='#4CAF50')
+        self.signup_btn.configure(text="🏢 Create Account", state='normal', bg='#10b981')
 
     def show_modern_popup(self, title, message, status):
         """🎨 Show compact popup with enhanced styling"""
@@ -778,16 +843,16 @@ class AuthSystem:
         except:
             pass
         
-        # Status colors and icons with consistent palette
+        # Status colors matching main app palette
         if status == "success":
             icon = "✅"
-            color = "#4CAF50"  # Success green
+            color = "#10b981"  # Main app success green
         elif status == "warning":
             icon = "⚠️"
-            color = "#F26A21"  # Primary orange for warnings
+            color = "#f59e0b"  # Main app warning orange
         else:
             icon = "❌"
-            color = "#E53935"  # Error red
+            color = "#ef4444"  # Main app error red
         
         # Compact header
         header_frame = tk.Frame(popup, bg=color, height=50)
@@ -807,14 +872,15 @@ class AuthSystem:
                                 justify="center", wraplength=280)
         message_label.pack(pady=(0, 15))
         
-        # Compact close button
+        # Compact close button matching main app
         close_btn = tk.Button(content_frame, text="Close", 
-                             font=('Segoe UI', 10, 'bold'), bg='#9E9E9E', fg='#ffffff', 
+                             font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
                              relief='flat', padx=20, pady=6, cursor='hand2', bd=0,
-                             command=popup.destroy)
+                             highlightthickness=0, command=popup.destroy)
         close_btn.pack()
         
-        # Use CSS-like centering function with smaller size
+        # Center the popup properly
+        popup.update_idletasks()  # Ensure popup is fully rendered
         center_dialog(popup, 320, 180)
         
         popup.focus_set()
