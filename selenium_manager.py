@@ -6,6 +6,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.edge.service import Service as EdgeService
+try:
+    from webdriver_manager.chrome import ChromeDriverManager
+    from webdriver_manager.microsoft import EdgeChromiumDriverManager
+    WEBDRIVER_MANAGER_AVAILABLE = True
+except ImportError:
+    WEBDRIVER_MANAGER_AVAILABLE = False
 
 def center_dialog(dialog, width=None, height=None):
     """Center dialog using CSS-like positioning"""
@@ -44,23 +50,36 @@ class SeleniumManager:
         if browser_type == "chrome":
             options = webdriver.ChromeOptions()
             options.add_argument("--start-maximized")
+            options.add_argument("--disable-web-security")
+            options.add_argument("--allow-running-insecure-content")
+            options.add_argument("--ignore-certificate-errors")
             if incognito:
                 options.add_argument("--incognito")
             if second_screen:
                 options.add_argument("--window-position=1920,0")
             
-            # Try local ChromeDriver first
-            chrome_paths = [
-                os.path.join(os.getcwd(), "chromedriver.exe"),
-                os.path.join(os.getcwd(), "chromedriver-win64", "chromedriver.exe"),
-                os.path.join(os.getcwd(), "chromedriver-win64", "chromedriver-win64", "chromedriver.exe")
-            ]
-            local_driver = next((p for p in chrome_paths if os.path.exists(p)), None)
-            
-            if local_driver:
-                service = ChromeService(local_driver)
-                self.driver = webdriver.Chrome(service=service, options=options)
-            else:
+            try:
+                if WEBDRIVER_MANAGER_AVAILABLE:
+                    # Use WebDriver Manager for automatic version management
+                    service = ChromeService(ChromeDriverManager().install())
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                else:
+                    # Try local ChromeDriver first
+                    chrome_paths = [
+                        os.path.join(os.getcwd(), "chromedriver.exe"),
+                        os.path.join(os.getcwd(), "chromedriver-win64", "chromedriver.exe"),
+                        os.path.join(os.getcwd(), "chromedriver-win64", "chromedriver-win64", "chromedriver.exe")
+                    ]
+                    local_driver = next((p for p in chrome_paths if os.path.exists(p)), None)
+                    
+                    if local_driver:
+                        service = ChromeService(local_driver)
+                        self.driver = webdriver.Chrome(service=service, options=options)
+                    else:
+                        # Try system ChromeDriver
+                        self.driver = webdriver.Chrome(options=options)
+            except Exception as e:
+                print(f"Chrome driver failed: {e}")
                 # Fallback to Edge
                 return self.create_driver("edge", incognito, second_screen)
         else:
@@ -75,21 +94,23 @@ class SeleniumManager:
                 options.add_argument("--window-position=1920,0")
             
             try:
-                driver_path = os.path.join(os.getcwd(), "edgedriver", "msedgedriver.exe")
-                if os.path.exists(driver_path):
-                    service = EdgeService(driver_path)
+                if WEBDRIVER_MANAGER_AVAILABLE:
+                    # Use WebDriver Manager for automatic version management
+                    service = EdgeService(EdgeChromiumDriverManager().install())
                     self.driver = webdriver.Edge(service=service, options=options)
                 else:
-                    self.driver = webdriver.Edge(options=options)
+                    # Try local EdgeDriver first
+                    driver_path = os.path.join(os.getcwd(), "edgedriver", "msedgedriver.exe")
+                    if os.path.exists(driver_path):
+                        service = EdgeService(driver_path)
+                        self.driver = webdriver.Edge(service=service, options=options)
+                    else:
+                        # Try system EdgeDriver
+                        self.driver = webdriver.Edge(options=options)
             except Exception as e:
+                print(f"Edge driver failed: {e}")
                 # Fallback to Chrome if Edge fails
-                chrome_options = webdriver.ChromeOptions()
-                chrome_options.add_argument("--start-maximized")
-                if incognito:
-                    chrome_options.add_argument("--incognito")
-                if second_screen:
-                    chrome_options.add_argument("--window-position=1920,0")
-                self.driver = webdriver.Chrome(options=chrome_options)
+                return self.create_driver("chrome", incognito, second_screen)
         
         if self.driver:
             self.driver.maximize_window()
