@@ -125,13 +125,44 @@ def generate_tes070_report(rice_profile, show_popup=None, current_user=None, db_
                 display_rice_id = rice_id_result[0] if rice_id_result else rice_profile
                 
                 if show_popup:
-                    show_popup(
-                        "Cannot Generate TES-070", 
-                        f"Cannot generate TES-070 report for RICE {display_rice_id}.\n\n"
-                        f"Found {not_run_count} scenario(s) with 'Not run' status.\n\n"
-                        "Please execute all scenarios before generating the report.",
-                        "error"
-                    )
+                    # Create custom dialog with increased height (0.5 inch = 36px)
+                    error_popup = tk.Toplevel()
+                    error_popup.title("Cannot Generate TES-070")
+                    center_dialog(error_popup, 450, 272)  # Increased from 236 to 272 (36px more)
+                    error_popup.configure(bg='#ffffff')
+                    error_popup.resizable(False, False)
+                    error_popup.grab_set()
+                    
+                    try:
+                        error_popup.iconbitmap("infor_logo.ico")
+                    except:
+                        pass
+                    
+                    # Header
+                    header_frame = tk.Frame(error_popup, bg='#ef4444', height=60)
+                    header_frame.pack(fill="x")
+                    header_frame.pack_propagate(False)
+                    
+                    tk.Label(header_frame, text="⚠️ Cannot Generate TES-070", 
+                            font=('Segoe UI', 14, 'bold'), bg='#ef4444', fg='#ffffff').pack(expand=True)
+                    
+                    # Content
+                    content_frame = tk.Frame(error_popup, bg='#ffffff', padx=20, pady=20)
+                    content_frame.pack(fill="both", expand=True)
+                    
+                    message_text = (f"Cannot generate TES-070 report for RICE {display_rice_id}.\n\n"
+                                  f"Found {not_run_count} scenario(s) with 'Not run' status.\n\n"
+                                  "Please execute all scenarios before generating the report.")
+                    
+                    tk.Label(content_frame, text=message_text, font=('Segoe UI', 10), 
+                            bg='#ffffff', fg='#374151', justify="center").pack(pady=(0, 20))
+                    
+                    # OK button
+                    tk.Button(content_frame, text="OK", font=('Segoe UI', 10, 'bold'), 
+                             bg='#ef4444', fg='#ffffff', relief='flat', padx=20, pady=8, 
+                             cursor='hand2', bd=0, command=error_popup.destroy).pack()
+                    
+                    error_popup.focus_set()
                 conn.close()
                 if loading_popup and loading_popup.winfo_exists():
                     elapsed_time = time.time() - start_time
