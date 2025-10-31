@@ -4,7 +4,7 @@
 import tkinter as tk
 from tkinter import ttk
 from rice_ui import RiceUI
-from rice_data import RiceDataManager
+from rice_data_core import RiceDataManager
 from rice_dialogs import center_dialog
 
 class RiceManager:
@@ -16,10 +16,7 @@ class RiceManager:
         # Store reference to main app for user access
         self.main_app = self._find_main_app(parent)
         
-        # Initialize data manager
-        self.data_manager = RiceDataManager(db_manager, show_popup_callback, self)
-        
-        # Initialize UI components
+        # Initialize UI components first
         callbacks = {
             'rice_prev_page': self.rice_prev_page,
             'rice_next_page': self.rice_next_page,
@@ -37,6 +34,11 @@ class RiceManager:
             'show_personal_dashboard': self.show_personal_dashboard
         }
         self.ui = RiceUI(parent, callbacks)
+        
+        # Initialize data manager with UI reference
+        self.data_manager = RiceDataManager(db_manager, show_popup_callback, self, self.ui)
+        
+
         
         # UI component references (set after setup)
         self.ui_components = {}
@@ -81,14 +83,12 @@ class RiceManager:
         # Store UI component references
         self.ui_components = {
             'rice_scroll_frame': self.ui.rice_scroll_frame,
-            'rice_page_label': self.ui.rice_page_label,
-            'rice_prev_btn': self.ui.rice_prev_btn,
-            'rice_next_btn': self.ui.rice_next_btn,
             'scenarios_scroll_frame': self.ui.scenarios_scroll_frame,
             'scenarios_label': self.ui.scenarios_label,
-            'scenarios_page_label': self.ui.scenarios_page_label,
-            'scenarios_prev_btn': self.ui.scenarios_prev_btn,
-            'scenarios_next_btn': self.ui.scenarios_next_btn
+            # Add search UI references
+            'rice_search_var': self.ui.rice_search_var,
+            'rice_type_filter_var': self.ui.rice_type_filter_var,
+            'rice_type_filter': self.ui.rice_type_filter
         }
         
         # Reset current profile state when tab is recreated
