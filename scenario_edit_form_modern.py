@@ -158,16 +158,13 @@ class ModernScenarioEditForm:
         self.test_user_var = tk.StringVar()
         self.test_user_combo = ttk.Combobox(user_select_frame, textvariable=self.test_user_var,
                                            font=('Segoe UI', 10), state='readonly')
-        self.test_user_combo.pack(side='left', fill='x', expand=True, padx=(0, 10))
-        
-        manage_users_btn = tk.Button(user_select_frame, text="👥 Manage Users",
-                                    font=('Segoe UI', 9, 'bold'), bg='#8b5cf6', fg='white',
-                                    relief='flat', padx=12, pady=6, cursor='hand2', bd=0,
-                                    command=self._open_test_users_manager)
-        manage_users_btn.pack(side='right')
+        self.test_user_combo.pack(fill='x')
         
         # Load test users and set current user
         self._load_test_users()
+        
+        # Bind user selection change
+        self.test_user_combo.bind('<<ComboboxSelected>>', self._on_user_selected)
         
         # Show/hide login section based on auto_login
         if auto_login:
@@ -345,11 +342,7 @@ class ModernScenarioEditForm:
             print(f"Error detecting current test user: {e}")
             return None
     
-    def _open_test_users_manager(self):
-        """Open Test Users management"""
-        self.popup_manager.show_info("Test Users", 
-            "Please use the sidebar menu to access 'Test Users' for user management.", 
-            parent=self.dialog)
+
     
     def _load_existing_steps(self, scenario_id, current_profile, scenario_number):
         """Load existing scenario steps"""
@@ -544,15 +537,175 @@ class ModernScenarioEditForm:
     
     def _add_steps_from_groups(self):
         """Add steps from test groups"""
-        self.popup_manager.show_info("Add Steps", 
-            "📋 Add Steps from Test Groups\n\nFeature available - opens step selection dialog",
-            parent=self.dialog)
+        try:
+            # Create step selection dialog
+            step_dialog = self.popup_manager.create_dynamic_dialog(
+                parent=self.dialog,
+                title="Add Steps from Test Groups",
+                width=800,
+                height=600,
+                resizable=True
+            )
+            
+            # Header
+            header = tk.Frame(step_dialog, bg='#10b981', height=50)
+            header.pack(fill='x')
+            header.pack_propagate(False)
+            
+            tk.Label(header, text="📋 Add Steps from Test Groups", 
+                    font=('Segoe UI', 14, 'bold'), bg='#10b981', fg='white').pack(expand=True)
+            
+            # Content
+            content = tk.Frame(step_dialog, bg='white', padx=20, pady=20)
+            content.pack(fill='both', expand=True)
+            
+            # Group selection
+            tk.Label(content, text="Select Test Group:", 
+                    font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w', pady=(0, 5))
+            
+            group_var = tk.StringVar()
+            group_combo = ttk.Combobox(content, textvariable=group_var,
+                                      font=('Segoe UI', 10), state='readonly')
+            group_combo.pack(fill='x', pady=(0, 15))
+            
+            # Available steps
+            tk.Label(content, text="Available Steps:", 
+                    font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w', pady=(0, 5))
+            
+            steps_listbox = tk.Listbox(content, font=('Segoe UI', 9), selectmode=tk.MULTIPLE, height=12)
+            steps_scroll = ttk.Scrollbar(content, orient='vertical', command=steps_listbox.yview)
+            steps_listbox.configure(yscrollcommand=steps_scroll.set)
+            
+            listbox_frame = tk.Frame(content, bg='white')
+            listbox_frame.pack(fill='both', expand=True, pady=(0, 20))
+            
+            steps_listbox.pack(side='left', fill='both', expand=True, in_=listbox_frame)
+            steps_scroll.pack(side='right', fill='y', in_=listbox_frame)
+            
+            # Load groups
+            groups = self.db_manager.get_test_step_groups()
+            if groups:
+                group_options = [f"{group[1]} ({group[3]} steps)" for group in groups]
+                group_combo['values'] = group_options
+                if group_options:
+                    group_combo.current(0)  # Select first group by default
+                    load_group_steps()  # Load steps for first group
+            else:
+                group_combo['values'] = ["No test groups available"]
+                steps_listbox.insert(tk.END, "No test step groups found. Create groups in Test Step Groups section first.")
+            
+            def load_group_steps(event=None):
+                if not group_var.get():
+                    return
+                try:
+                    group_index = group_combo.current()
+                    if group_index >= 0 and group_index < len(groups):
+                        group_id = groups[group_index][0]
+                        steps = self.db_manager.get_test_steps_by_group(group_id)
+                        steps_listbox.delete(0, tk.END)
+                        if steps:
+                            for step in steps:
+                                display_text = f"{step[1]} ({step[2]})"
+                                steps_listbox.insert(tk.END, display_text)
+                        else:
+                            steps_listbox.insert(tk.END, "No steps found in this group")
+                except Exception as e:
+                    print(f"Error loading group steps: {e}")
+                    steps_listbox.delete(0, tk.END)
+                    steps_listbox.insert(tk.END, f"Error loading steps: {str(e)}")
+            
+            group_combo.bind('<<ComboboxSelected>>', load_group_steps)
+            
+            # Store references for the add function
+            step_dialog.groups = groups
+            step_dialog.steps_listbox = steps_listbox
+            step_dialog.group_combo = group_combo
+            
+            # Buttons
+            btn_frame = tk.Frame(content, bg='white')
+            btn_frame.pack(fill='x')
+            
+            def add_selected_steps():
+                selection = steps_listbox.curselection()
+                if not selection or not group_var.get() or not groups:
+                    self.popup_manager.show_error("Error", "Please select steps to add", parent=step_dialog)
+                    return
+                
+                try:
+                    group_index = group_combo.current()
+                    if group_index < 0 or group_index >= len(groups):
+                        self.popup_manager.show_error("Error", "Invalid group selection", parent=step_dialog)
+                        return
+                    
+                    group_id = groups[group_index][0]
+                    steps = self.db_manager.get_test_steps_by_group(group_id)
+                    
+                    if not steps:
+                        self.popup_manager.show_error("Error", "No steps found in selected group", parent=step_dialog)
+                        return
+                    
+                    added_count = 0
+                    for index in selection:
+                        if index < len(steps):
+                            step_data = steps[index]
+                            step_id, name, step_type, target, description = step_data
+                            
+                            self.current_steps_data.append({
+                                'order': len(self.current_steps_data) + 1,
+                                'name': name,
+                                'type': step_type,
+                                'target': target,
+                                'description': description or '',
+                                'step_id': step_id
+                            })
+                            added_count += 1
+                    
+                    self._update_steps_display()
+                    step_dialog.destroy()
+                    
+                    if added_count > 0:
+                        self.popup_manager.show_success("Success", f"Added {added_count} steps to scenario")
+                    else:
+                        self.popup_manager.show_error("Error", "No steps were added")
+                        
+                except Exception as e:
+                    self.popup_manager.show_error("Error", f"Failed to add steps: {str(e)}", parent=step_dialog)
+            
+            tk.Button(btn_frame, text="Cancel", 
+                     font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='white',
+                     relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
+                     command=step_dialog.destroy).pack(side='right', padx=(10, 0))
+            
+            tk.Button(btn_frame, text="Add Selected Steps", 
+                     font=('Segoe UI', 10, 'bold'), bg='#10b981', fg='white',
+                     relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
+                     command=add_selected_steps).pack(side='right')
+            
+        except Exception as e:
+            self.popup_manager.show_error("Error", f"Failed to open add steps dialog: {str(e)}", parent=self.dialog)
     
     def _show_import_dialog(self):
-        """Show import test groups dialog"""
-        self.popup_manager.show_info("Import Test Groups", 
-            "📥 Import Test Groups\n\nComing in Phase 2:\n• Browse community test groups\n• Import from GitHub repository\n• One-click integration",
-            parent=self.dialog)
+        """Show GitHub Test Groups import dialog"""
+        try:
+            from github_test_groups_importer import GitHubTestGroupsImporter
+            importer = GitHubTestGroupsImporter(self.db_manager, self.show_popup)
+            importer.show_import_browser(parent_dialog=self.dialog)
+        except ImportError:
+            self.popup_manager.show_info("Import Test Groups", 
+                "📥 GitHub Test Groups Import\n\nBrowse and import community test groups from GitHub repository.",
+                parent=self.dialog)
+        except Exception as e:
+            self.popup_manager.show_error("Error", f"Failed to open import dialog: {str(e)}", parent=self.dialog)
+    
+    def _on_user_selected(self, event=None):
+        """Handle test user selection change"""
+        self._update_steps_display()
+    
+    def _on_groups_imported(self):
+        """Callback when test groups are imported"""
+        self.popup_manager.show_success("Success", "Test groups imported successfully!")
+    
+
     
     def _edit_step_value(self):
         """Edit step value"""
