@@ -45,8 +45,9 @@ class EnhancedPopupManager:
         if y + height > screen_h:
             y = screen_h - height - 50
         
-        # Position popup
+        # Position popup properly with proper visibility sequence
         popup.withdraw()
+        popup.update_idletasks()  # Ensure popup is fully rendered
         popup.geometry(f"{width}x{height}+{x}+{y}")
         
         # Configure window behavior
@@ -54,11 +55,17 @@ class EnhancedPopupManager:
             popup.transient(parent)
             popup.grab_set()
         else:
-            # Non-modal: don't grab focus, allow interaction with other windows
-            popup.transient()
-            popup.attributes('-topmost', False)
+            # Non-modal: set transient to parent to stay associated
+            popup.transient(parent)
         
+        # Show popup and ensure it appears on top initially
         popup.deiconify()
+        popup.lift()  # Bring to front
+        popup.attributes('-topmost', True)  # Temporarily on top
+        popup.focus_set()
+        
+        # Remove topmost after a brief moment to allow normal window behavior
+        popup.after(100, lambda: popup.attributes('-topmost', False))
         
         # Track popup
         self.active_popups.append(popup)
@@ -74,6 +81,72 @@ class EnhancedPopupManager:
         popup.protocol("WM_DELETE_WINDOW", on_close)
         
         return popup
+    
+    def create_dynamic_dialog(self, parent, title, content_text="", width=None, height=None, modal=True, resizable=True):
+        """Create dialog with dynamic sizing based on content"""
+        import tkinter as tk
+        
+        # Use default dimensions if not provided
+        width = width or 800
+        height = height or 600
+        
+        # Handle None parent - use root window
+        if parent is None:
+            parent = tk._default_root
+        
+        # Create simple toplevel window
+        dialog = tk.Toplevel(parent)
+        dialog.title(title)
+        dialog.configure(bg='#ffffff')
+        dialog.resizable(resizable, resizable)
+        
+        # Set icon
+        try:
+            dialog.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Center the dialog
+        screen_w = dialog.winfo_screenwidth()
+        screen_h = dialog.winfo_screenheight()
+        x = (screen_w // 2) - (width // 2)
+        y = (screen_h // 2) - (height // 2)
+        
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Set window properties
+        if modal:
+            dialog.transient(parent)
+            dialog.grab_set()
+        
+        dialog.lift()
+        dialog.focus_set()
+        
+        return dialog
+    
+    def show_error(self, title, message, parent=None):
+        """Show error popup with enhanced styling"""
+        if parent is None:
+            import tkinter as tk
+            parent = tk._default_root
+        
+        return create_enhanced_popup(parent, title, message, "error", modal=False)
+    
+    def show_success(self, title, message, parent=None):
+        """Show success popup with enhanced styling"""
+        if parent is None:
+            import tkinter as tk
+            parent = tk._default_root
+        
+        return create_enhanced_popup(parent, title, message, "success", modal=False)
+    
+    def show_info(self, title, message, parent=None):
+        """Show info popup with enhanced styling"""
+        if parent is None:
+            import tkinter as tk
+            parent = tk._default_root
+        
+        return create_enhanced_popup(parent, title, message, "warning", modal=False)
     
     def center_dialog_enhanced(self, dialog, width=None, height=None, modal=True):
         """Enhanced center dialog that respects existing windows"""
@@ -100,6 +173,7 @@ class EnhancedPopupManager:
             base_y = screen_h - h - 50
         
         dialog.withdraw()
+        dialog.update_idletasks()  # Ensure dialog is fully rendered
         dialog.geometry(f"{w}x{h}+{base_x}+{base_y}")
         
         if modal:
@@ -190,6 +264,11 @@ def create_enhanced_popup(parent, title, message, status, modal=False):
                          command=popup.destroy)
     close_btn.pack()
     
+    # Ensure popup appears on top initially when called from button
+    popup.update_idletasks()
+    popup.lift()
+    popup.focus_force()
+    
     return popup
 
 def create_enhanced_dialog(parent, title, width=400, height=300, modal=True):
@@ -200,7 +279,7 @@ def enhanced_center_dialog(dialog, width=None, height=None, modal=True):
     """Enhanced centering that respects existing windows"""
     popup_manager.center_dialog_enhanced(dialog, width, height, modal)
 
-def calculate_dynamic_dialog_size(message_text, base_width=400, base_height=200, max_height=600):
+def calculate_dynamic_dialog_size(message_text="", base_width=400, base_height=200, max_height=600):
     """Calculate dynamic dialog dimensions based on content"""
     # Calculate width based on longest line
     lines = message_text.split('\n')
@@ -217,11 +296,13 @@ def calculate_dynamic_dialog_size(message_text, base_width=400, base_height=200,
     
     return dynamic_width, dynamic_height
 
-def create_dynamic_dialog(parent, title, content_text="", width=None, height=None, modal=True):
+def create_dynamic_dialog(parent, title, content_text="", width=None, height=None, modal=True, resizable=True):
     """Create dialog with dynamic sizing based on content"""
     if width is None or height is None:
         calc_width, calc_height = calculate_dynamic_dialog_size(content_text)
         width = width or calc_width
         height = height or calc_height
     
-    return popup_manager.create_non_blocking_popup(parent, title, width, height, modal)
+    popup = popup_manager.create_non_blocking_popup(parent, title, width, height, modal)
+    popup.resizable(resizable, resizable)
+    return popup
