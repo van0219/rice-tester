@@ -171,13 +171,13 @@ class TestStepsManager:
             
             # Action buttons with Unicode symbols
             view_btn = tk.Button(actions_frame, text="👁️ View", font=('Segoe UI', 8, 'bold'), 
-                               bg='#3b82f6', fg='#ffffff', relief='flat', 
+                               bg='#10b981', fg='#ffffff', relief='flat', 
                                padx=4, pady=1, cursor='hand2', bd=0,
                                command=lambda gid=group_id: self._view_group_steps(gid))
             view_btn.place(relx=0.02, rely=0.1, relwidth=0.32, relheight=0.8)
             
             edit_btn = tk.Button(actions_frame, text="✏️ Edit", font=('Segoe UI', 8, 'bold'), 
-                               bg='#10b981', fg='#ffffff', relief='flat', 
+                               bg='#3b82f6', fg='#ffffff', relief='flat', 
                                padx=4, pady=1, cursor='hand2', bd=0,
                                command=lambda gid=group_id: self._edit_group(gid))
             edit_btn.place(relx=0.36, rely=0.1, relwidth=0.32, relheight=0.8)
