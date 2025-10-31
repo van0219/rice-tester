@@ -274,12 +274,28 @@ class ScenarioManager:
         self.dialogs.show_child_popup(parent_window, title, message, status)
     
     def edit_scenario(self, scenario_id, current_profile, refresh_callback):
-        """Edit scenario with step management"""
-        self.forms.edit_scenario(scenario_id, current_profile, refresh_callback)
+        """Edit scenario with modern form and Test Users integration"""
+        try:
+            from scenario_edit_form_modern import ModernScenarioEditForm
+            modern_form = ModernScenarioEditForm(self.db_manager, self.show_popup)
+            modern_form.edit_scenario(scenario_id, current_profile, refresh_callback)
+        except Exception as e:
+            print(f"Error in edit_scenario: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_popup("Error", f"Failed to open edit scenario form: {str(e)}", "error")
     
     def add_scenario(self, current_profile, refresh_callback):
-        """Add new scenario with test step selection from groups"""
-        self.forms.add_scenario(current_profile, refresh_callback)
+        """Add new scenario with modern form and Test Users integration"""
+        try:
+            from scenario_add_form_modern import ModernScenarioAddForm
+            modern_form = ModernScenarioAddForm(self.db_manager, self.show_popup)
+            modern_form.add_scenario(current_profile, refresh_callback)
+        except Exception as e:
+            print(f"Error in add_scenario: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_popup("Error", f"Failed to open add scenario form: {str(e)}", "error")
     
     def view_scenario_steps(self, scenario_id, scenario_number, current_profile):
         """View steps for a scenario with pagination"""
