@@ -42,7 +42,7 @@ class TestStepsMethods:
             'File Upload', 'Dropdown Select', 'Checkbox Toggle', 'Radio Button Select',
             'Drag and Drop', 'Mouse Hover', 'Scroll', 'Switch Frame', 'Switch Window',
             'Take Screenshot', 'Get Text', 'Get Attribute', 'Clear Field', 'Refresh Page',
-            'Go Back', 'Go Forward', 'Accept Alert', 'Dismiss Alert', 'Send Keys'
+            'Go Back', 'Go Forward', 'Accept Alert', 'Dismiss Alert', 'Send Keys', 'Email Check'
         ]
         type_combo.pack(fill="x", pady=(0, 10))
         
@@ -207,6 +207,24 @@ class TestStepsMethods:
                 keys_combo['values'] = ['ENTER', 'TAB', 'ESCAPE', 'SPACE', 'ARROW_UP', 'ARROW_DOWN', 'ARROW_LEFT', 'ARROW_RIGHT', 'F1', 'F2', 'F3', 'F4', 'F5']
                 keys_combo.pack(fill="x", pady=(0, 5))
                 dynamic_widgets['keys'] = keys_var
+                
+            elif step_type == 'Email Check':
+                tk.Label(dynamic_frame, text="Search Criteria:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 5))
+                search_entry = tk.Entry(dynamic_frame, width=50, font=('Segoe UI', 10))
+                search_entry.insert(0, 'subject:"notification"')
+                search_entry.pack(fill="x", pady=(0, 10))
+                dynamic_widgets['search_criteria'] = search_entry
+                
+                tk.Label(dynamic_frame, text="Expected Content (Optional):", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 5))
+                content_entry = tk.Entry(dynamic_frame, width=50, font=('Segoe UI', 10))
+                content_entry.pack(fill="x", pady=(0, 10))
+                dynamic_widgets['expected_content'] = content_entry
+                
+                tk.Label(dynamic_frame, text="Timeout (seconds):", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 5))
+                timeout_entry = tk.Entry(dynamic_frame, width=50, font=('Segoe UI', 10))
+                timeout_entry.insert(0, '60')
+                timeout_entry.pack(fill="x", pady=(0, 5))
+                dynamic_widgets['timeout'] = timeout_entry
         
         type_combo.bind('<<ComboboxSelected>>', update_dynamic_fields)
         
@@ -295,6 +313,19 @@ class TestStepsMethods:
                 keys = dynamic_widgets.get('keys', tk.StringVar()).get()
                 return keys
             
+            elif step_type == 'Email Check':
+                search_criteria = dynamic_widgets.get('search_criteria', tk.Entry()).get().strip()
+                expected_content = dynamic_widgets.get('expected_content', tk.Entry()).get().strip()
+                timeout = dynamic_widgets.get('timeout', tk.Entry()).get().strip()
+                
+                target_parts = [f"SEARCH:{search_criteria}"]
+                if expected_content:
+                    target_parts.append(f"CONTENT:{expected_content}")
+                if timeout:
+                    target_parts.append(f"TIMEOUT:{timeout}")
+                
+                return " | ".join(target_parts)
+            
             elif step_type in ['Take Screenshot', 'Refresh Page', 'Go Back', 'Go Forward', 'Accept Alert', 'Dismiss Alert']:
                 return step_type  # These don't need additional parameters
             
@@ -379,7 +410,7 @@ class TestStepsMethods:
             'File Upload', 'Dropdown Select', 'Checkbox Toggle', 'Radio Button Select',
             'Drag and Drop', 'Mouse Hover', 'Scroll', 'Switch Frame', 'Switch Window',
             'Take Screenshot', 'Get Text', 'Get Attribute', 'Clear Field', 'Refresh Page',
-            'Go Back', 'Go Forward', 'Accept Alert', 'Dismiss Alert', 'Send Keys'
+            'Go Back', 'Go Forward', 'Accept Alert', 'Dismiss Alert', 'Send Keys', 'Email Check'
         ]
         type_combo.pack(fill="x", pady=(0, 10))
         
