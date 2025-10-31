@@ -431,7 +431,7 @@ class RiceDataManager:
         
         # Main row frame
         row_frame = tk.Frame(parent, bg=bg_color, height=35)
-        row_frame.pack(fill='x')
+        row_frame.pack(fill='x', pady=1)
         row_frame.pack_propagate(False)
         
         # Get column configuration from UI (passed via rice_ui_ref)
@@ -447,6 +447,13 @@ class RiceDataManager:
                 'sftp': {'start': 0.67, 'width': 0.13},
                 'actions': {'start': 0.80, 'width': 0.20}
             }
+        
+        # Column separators for rows
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=RICE_COLS['name']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=RICE_COLS['type']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=RICE_COLS['channel']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=RICE_COLS['sftp']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=RICE_COLS['actions']['start'], y=2, height=31)
         
         # RICE ID
         rice_id_label = tk.Label(row_frame, text=rice_id or '', font=('Segoe UI', 9), 
@@ -477,15 +484,19 @@ class RiceDataManager:
         actions_frame = tk.Frame(row_frame, bg=bg_color)
         actions_frame.place(relx=RICE_COLS['actions']['start'], y=5, relwidth=RICE_COLS['actions']['width'], height=25)
         
+        # Center container for buttons
+        center_frame = tk.Frame(actions_frame, bg=bg_color)
+        center_frame.pack(expand=True)
+        
         # Edit button (primary action for RICE)
-        edit_btn = tk.Button(actions_frame, text="✎ Edit", font=('Segoe UI', 8), 
-                            bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=2, 
+        edit_btn = tk.Button(center_frame, text="✏ Edit", font=('Segoe UI', 8, 'bold'), 
+                            bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=1, 
                             cursor='hand2', bd=0, highlightthickness=0,
-                            command=lambda: self.edit_rice_profile(profile_id))
-        edit_btn.pack(side='left')
+                            command=lambda pid=profile_id: self.edit_rice_profile(pid))
+        edit_btn.pack(side='left', padx=(0, 3))
         
         # More actions menu button
-        more_btn = tk.Button(actions_frame, text="•••", font=('Segoe UI', 8), 
+        more_btn = tk.Button(center_frame, text="•••", font=('Segoe UI', 8), 
                             bg='#6b7280', fg='#ffffff', relief='flat', padx=6, pady=2, 
                             cursor='hand2', bd=0, highlightthickness=0,
                             command=lambda: self._show_rice_actions_menu(more_btn, profile_id))
@@ -734,7 +745,7 @@ class RiceDataManager:
         
         # Main row frame
         row_frame = tk.Frame(parent, bg=bg_color, height=35)
-        row_frame.pack(fill='x')
+        row_frame.pack(fill='x', pady=1)
         row_frame.pack_propagate(False)
         
         # Get column configuration from UI (passed via rice_ui_ref)
@@ -751,6 +762,14 @@ class RiceDataManager:
                 'screenshot': {'start': 0.66, 'width': 0.07},
                 'actions': {'start': 0.73, 'width': 0.27}
             }
+        
+        # Column separators for rows
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=SCENARIO_COLS['description']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=SCENARIO_COLS['result']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=SCENARIO_COLS['steps']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=SCENARIO_COLS['file']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=SCENARIO_COLS['screenshot']['start'], y=2, height=31)
+        tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=SCENARIO_COLS['actions']['start'], y=2, height=31)
         
         # Scenario number
         scenario_label = tk.Label(row_frame, text=f"#{scenario_number}", font=('Segoe UI', 9), 
@@ -820,15 +839,19 @@ class RiceDataManager:
         actions_frame = tk.Frame(row_frame, bg=bg_color)
         actions_frame.place(relx=SCENARIO_COLS['actions']['start'], y=5, relwidth=SCENARIO_COLS['actions']['width'], height=25)
         
+        # Center container for buttons
+        center_frame = tk.Frame(actions_frame, bg=bg_color)
+        center_frame.pack(expand=True)
+        
         # Run button (primary action for scenarios)
-        run_btn = tk.Button(actions_frame, text="▶ Run", font=('Segoe UI', 8), 
+        run_btn = tk.Button(center_frame, text="▶ Run", font=('Segoe UI', 8), 
                            bg='#10b981', fg='#ffffff', relief='flat', padx=8, pady=2, 
                            cursor='hand2', bd=0, highlightthickness=0,
                            command=lambda: self._run_scenario(scenario_id))
         run_btn.pack(side='left', padx=(0, 5))
         
         # More actions menu button
-        more_btn = tk.Button(actions_frame, text="•••", font=('Segoe UI', 8), 
+        more_btn = tk.Button(center_frame, text="•••", font=('Segoe UI', 8), 
                             bg='#6b7280', fg='#ffffff', relief='flat', padx=6, pady=2, 
                             cursor='hand2', bd=0, highlightthickness=0,
                             command=lambda: self._show_scenario_actions_menu(more_btn, scenario_id))
