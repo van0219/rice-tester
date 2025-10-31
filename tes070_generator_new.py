@@ -371,6 +371,8 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
                                      OR LOWER(ts.description) LIKE '%password%'
                                      OR LOWER(ts.name) LIKE '%password%')
                            THEN 'Password'
+                           WHEN ss.step_description IS NULL OR LENGTH(TRIM(ss.step_description)) <= 5
+                           THEN COALESCE(ts.description, ss.step_description, 'Step')
                            ELSE ss.step_description
                        END as step_description,
                        ss.screenshot_after, 
@@ -392,6 +394,8 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
                                          OR LOWER(ts.description) LIKE '%password%'
                                          OR LOWER(ts.name) LIKE '%password%')
                                THEN 'Password'
+                               WHEN ss.step_description IS NULL OR LENGTH(TRIM(ss.step_description)) <= 5
+                               THEN COALESCE(ts.description, ss.step_description, 'Step')
                                ELSE ss.step_description
                            END as step_description,
                            ss.screenshot_after, 
@@ -409,8 +413,11 @@ def create_tes070_from_scratch(rice_profile, show_popup=None, current_user=None,
                 for step_order, step_desc, screenshot_b64, step_type in steps_data:
                     if step_desc:
                         step_lower = step_desc.lower()
-                        # Skip wait steps and empty/generic steps
-                        if not any(wait_word in step_lower for wait_word in ['wait', 'sleep', 'pause', 'delay', 'implicit', 'explicit']) and len(step_desc.strip()) > 5:
+                        # Skip wait steps (by step_type only) and empty/generic steps
+                        step_type_lower = (step_type or '').lower()
+                        is_wait_step = 'wait' in step_type_lower
+                        
+                        if not is_wait_step and len(step_desc.strip()) > 5:
                             # Format step description properly
                             formatted_desc = step_desc
                             
