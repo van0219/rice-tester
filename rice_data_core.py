@@ -10,10 +10,11 @@ from rice_dialogs import RiceDialogs, center_dialog
 from rice_scenario_manager import ScenarioManager
 
 class RiceDataManager:
-    def __init__(self, db_manager, show_popup_callback, rice_manager_ref=None):
+    def __init__(self, db_manager, show_popup_callback, rice_manager_ref=None, rice_ui_ref=None):
         self.db_manager = db_manager
         self.show_popup = show_popup_callback
         self._rice_manager_ref = rice_manager_ref
+        self._rice_ui_ref = rice_ui_ref
         
         # Initialize managers
         self.pagination = PaginationManager()
@@ -27,6 +28,28 @@ class RiceDataManager:
         self.current_profile = None
         self.selected_rice_profile = None
         self.selected_rice_row = None  # Track selected row widget
+        
+        # Initialize responsive configuration with dynamic scale factor
+        try:
+            import tkinter as tk
+            root = tk._default_root or tk.Tk()
+            screen_width = root.winfo_screenwidth()
+            # Scale factor based on screen width: 1.0 for 1920px, higher for larger screens
+            scale_factor = max(1.0, screen_width / 1920.0)
+        except:
+            scale_factor = 1.0
+            
+        self.responsive_config = {
+            'scale_factor': scale_factor,
+            'fonts': {
+                'button': ('Segoe UI', 10, 'bold'),
+                'header': ('Segoe UI', 14, 'bold')
+            },
+            'padding': {
+                'small': 15,
+                'tiny': 10
+            }
+        }
     
     def step_contains_url(self, step):
         """Check if a step contains a URL that might need tenant replacement"""
@@ -118,6 +141,25 @@ class RiceDataManager:
     def edit_rice_profile(self, profile_id):
         self.dialogs.edit_rice_profile(profile_id, self.refresh_rice_profiles_table)
     
+    def _show_rice_actions_menu(self, button, profile_id):
+        """Show actions menu for RICE profile"""
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Create popup menu with left-aligned labels
+        menu = tk.Menu(button, tearoff=0, font=('Segoe UI', 9))
+        menu.add_command(label="📋 Duplicate", command=lambda: self.duplicate_rice_profile(profile_id))
+        menu.add_separator()
+        menu.add_command(label="🗑️ Delete", command=lambda: self.delete_rice_profile(profile_id))
+        
+        # Show menu at button location
+        try:
+            x = button.winfo_rootx()
+            y = button.winfo_rooty() + button.winfo_height()
+            menu.post(x, y)
+        except:
+            pass
+    
     def duplicate_rice_profile(self, profile_id):
         """Duplicate RICE profile"""
         try:
@@ -194,7 +236,6 @@ class RiceDataManager:
         self.current_profile = None
         self.pagination.scenarios_current_page = 1
         ui_components['scenarios_label'].config(text="Scenarios")
-        ui_components['scenarios_page_label'].config(text="Page 1 of 1")
     
     def refresh_scenarios_table(self):
         """Auto-refresh scenarios table to show real-time updates"""
@@ -206,22 +247,143 @@ class RiceDataManager:
         # Store reference for auto-refresh
         self._ui_components_ref = ui_components
         
+        # Show loading indicator
+        if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref and hasattr(self._rice_ui_ref, 'show_loading'):
+            self._rice_ui_ref.show_loading()
+        
+        # Update filter options if UI exists
+        self._update_filter_options(ui_components)
+        
         # Clear existing profiles
-        for widget in ui_components['rice_scroll_frame'].winfo_children():
+        existing_widgets = ui_components['rice_scroll_frame'].winfo_children()
+        print(f"DEBUG: Clearing {len(existing_widgets)} existing widgets")
+        for widget in existing_widgets:
             widget.destroy()
         
-        # Get profiles from database with pagination
-        offset = (self.pagination.rice_current_page - 1) * self.pagination.rice_per_page
-        profiles = self.db_manager.get_rice_profiles_paginated(offset, self.pagination.rice_per_page)
-        total_profiles = self.db_manager.get_rice_profiles_count()
+        # Get search and filter criteria from UI
+        search_term = ""
+        type_filter = ""
+        client_filter = ""
         
-        # Update pagination info
-        total_pages = max(1, (total_profiles + self.pagination.rice_per_page - 1) // self.pagination.rice_per_page)
-        ui_components['rice_page_label'].config(text=f"Page {self.pagination.rice_current_page} of {total_pages}")
+        # Extract search terms from UI components
+        try:
+            # Get search term
+            if 'rice_search_var' in ui_components:
+                search_term = ui_components['rice_search_var'].get()
+                if search_term == "Search RICE items..." or not search_term.strip():
+                    search_term = ""
+            
+            # Get type filter
+            if 'rice_type_filter_var' in ui_components:
+                type_filter = ui_components['rice_type_filter_var'].get()
+                if type_filter == "All":
+                    type_filter = ""
+            
+            # Client filter removed - users linked to single client
+            client_filter = ""
+                    
+            print(f"DEBUG: Extracted filters - Search: '{search_term}', Type: '{type_filter}'")
+        except Exception as e:
+            print(f"DEBUG: Error extracting search terms: {e}")
+            # Fallback to empty filters
+            search_term = ""
+            type_filter = ""
+            client_filter = ""
         
-        # Create profile rows
+        # Get total count first for result display
+        total_profiles = len(self.db_manager.get_rice_profiles_filtered(0, 999999, "", "", ""))
+        
+        # Get filtered profiles from database (no pagination limits)
+        profiles = self.db_manager.get_rice_profiles_filtered(0, 999999, 
+                                                            search_term, type_filter, client_filter)
+        filtered_count = len(profiles)
+        
+        # Debug output
+        print(f"DEBUG: Loading RICE profiles for user_id={self.db_manager.user_id}")
+        print(f"DEBUG: Found {filtered_count} profiles, total={total_profiles}")
+        print(f"DEBUG: Search='{search_term}', Type='{type_filter}'")
+        print(f"DEBUG: No pagination - showing all records")
         for i, profile in enumerate(profiles):
-            self._create_rice_profile_row(ui_components['rice_scroll_frame'], profile, i)
+            print(f"DEBUG: Profile {i}: {profile}")
+        
+        # No pagination - showing all records with scroll
+        
+        # Create profile rows or show empty state
+        if profiles:
+            print(f"DEBUG: Creating {len(profiles)} profile rows")
+            first_profile_id = None
+            first_rice_id = None
+            first_row_widget = None
+            
+            for i, profile in enumerate(profiles):
+                row_widget = self._create_rice_profile_row(ui_components['rice_scroll_frame'], profile, i)
+                print(f"DEBUG: Created row {i} widget: {row_widget}")
+                
+                # Store first profile for auto-selection
+                if i == 0:
+                    first_profile_id = profile[0]  # profile_id
+                    first_rice_id = profile[1]     # rice_id
+                    first_row_widget = row_widget
+            
+            # Auto-select first profile if no current selection
+            if first_profile_id and not self.current_profile:
+                # Use a small delay to ensure UI is fully rendered before selection
+                ui_components['rice_scroll_frame'].after(100, 
+                    lambda: self._select_rice_profile(first_profile_id, first_rice_id, first_row_widget)
+                )
+            
+            # Calculate content height and adjust canvas
+            content_height = len(profiles) * 35  # 35px per row
+            print(f"DEBUG: Calculated content height: {content_height}px")
+            if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref:
+                # Use after_idle to ensure UI is ready before height calculation
+                ui_components['rice_scroll_frame'].after_idle(
+                    lambda: self._rice_ui_ref.adjust_rice_canvas_height(content_height)
+                )
+            else:
+                print("DEBUG: No _rice_ui_ref available for height adjustment")
+            
+            # Update search results count and hide loading
+            def _update_ui():
+                if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref:
+                    if hasattr(self._rice_ui_ref, 'update_search_results_count'):
+                        self._rice_ui_ref.update_search_results_count(filtered_count, total_profiles)
+                    if hasattr(self._rice_ui_ref, 'hide_loading'):
+                        self._rice_ui_ref.hide_loading()
+            
+            ui_components['rice_scroll_frame'].after_idle(_update_ui)
+        else:
+            print("DEBUG: No profiles found, showing empty state")
+            # Clear current selection and scenarios when no profiles match
+            self.current_profile = None
+            self.selected_rice_profile = None
+            self.selected_rice_row = None
+            ui_components['scenarios_label'].config(text="Scenarios")
+            # Clear scenarios
+            for widget in ui_components['scenarios_scroll_frame'].winfo_children():
+                widget.destroy()
+            self._create_scenarios_empty_state(ui_components['scenarios_scroll_frame'])
+            
+            self._create_rice_empty_state(ui_components['rice_scroll_frame'])
+            # Adjust canvas for empty state (120px height)
+            if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref:
+                ui_components['rice_scroll_frame'].after_idle(
+                    lambda: self._rice_ui_ref.adjust_rice_canvas_height(120)
+                )
+                if hasattr(self._rice_ui_ref, 'adjust_scenarios_canvas_height'):
+                    ui_components['scenarios_scroll_frame'].after_idle(
+                        lambda: self._rice_ui_ref.adjust_scenarios_canvas_height(100)
+                    )
+            
+            # Update search results count and hide loading for empty state
+            def _update_empty_ui():
+                if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref:
+                    if hasattr(self._rice_ui_ref, 'update_search_results_count'):
+                        self._rice_ui_ref.update_search_results_count(0, total_profiles)
+                    if hasattr(self._rice_ui_ref, 'hide_loading'):
+                        self._rice_ui_ref.hide_loading()
+            
+            ui_components['rice_scroll_frame'].after_idle(_update_empty_ui)
         
         # If a profile is currently selected, refresh its scenarios too
         if self.current_profile:
@@ -236,18 +398,28 @@ class RiceDataManager:
         for widget in ui_components['scenarios_scroll_frame'].winfo_children():
             widget.destroy()
         
-        # Get scenarios from database with pagination
-        offset = (self.pagination.scenarios_current_page - 1) * self.pagination.scenarios_per_page
-        scenarios = self.db_manager.get_scenarios_paginated(self.current_profile, offset, self.pagination.scenarios_per_page)
-        total_scenarios = self.db_manager.get_scenarios_count(self.current_profile)
+        # Get all scenarios from database (no pagination limits)
+        scenarios = self.db_manager.get_scenarios_paginated(self.current_profile, 0, 999999)
+        total_scenarios = len(scenarios)
         
-        # Update pagination info
-        total_pages = max(1, (total_scenarios + self.pagination.scenarios_per_page - 1) // self.pagination.scenarios_per_page)
-        ui_components['scenarios_page_label'].config(text=f"Page {self.pagination.scenarios_current_page} of {total_pages}")
+        # No pagination - showing all scenarios with scroll
         
-        # Create scenario rows
-        for i, scenario in enumerate(scenarios):
-            self._create_scenario_row(ui_components['scenarios_scroll_frame'], scenario, i)
+        # Create scenario rows or show empty state
+        if scenarios:
+            for i, scenario in enumerate(scenarios):
+                self._create_scenario_row(ui_components['scenarios_scroll_frame'], scenario, i)
+            # Adjust scenarios canvas height
+            content_height = len(scenarios) * 35
+            if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref and hasattr(self._rice_ui_ref, 'adjust_scenarios_canvas_height'):
+                ui_components['scenarios_scroll_frame'].after_idle(
+                    lambda: self._rice_ui_ref.adjust_scenarios_canvas_height(content_height)
+                )
+        else:
+            self._create_scenarios_empty_state(ui_components['scenarios_scroll_frame'])
+            if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref and hasattr(self._rice_ui_ref, 'adjust_scenarios_canvas_height'):
+                ui_components['scenarios_scroll_frame'].after_idle(
+                    lambda: self._rice_ui_ref.adjust_scenarios_canvas_height(100)
+                )
     
     def _create_rice_profile_row(self, parent, profile, row_index):
         """Create a single RICE profile row"""
@@ -262,70 +434,72 @@ class RiceDataManager:
         row_frame.pack(fill='x')
         row_frame.pack_propagate(False)
         
+        # Get column configuration from UI (passed via rice_ui_ref)
+        if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref and hasattr(self._rice_ui_ref, 'RICE_COLUMNS'):
+            RICE_COLS = self._rice_ui_ref.RICE_COLUMNS
+        else:
+            # Fallback configuration
+            RICE_COLS = {
+                'rice_id': {'start': 0.0, 'width': 0.12},
+                'name': {'start': 0.12, 'width': 0.25},
+                'type': {'start': 0.37, 'width': 0.18},
+                'channel': {'start': 0.55, 'width': 0.12},
+                'sftp': {'start': 0.67, 'width': 0.13},
+                'actions': {'start': 0.80, 'width': 0.20}
+            }
+        
         # RICE ID
         rice_id_label = tk.Label(row_frame, text=rice_id or '', font=('Segoe UI', 9), 
-                                bg=bg_color, fg='#374151', anchor='w')
-        rice_id_label.place(relx=0, y=8, relwidth=0.12)
-        rice_id_label.config(padx=18)
+                                bg=bg_color, fg='#374151', anchor='w', padx=18)
+        rice_id_label.place(relx=RICE_COLS['rice_id']['start'], y=8, relwidth=RICE_COLS['rice_id']['width'])
         
         # Name
         name_label = tk.Label(row_frame, text=name or '', font=('Segoe UI', 9), 
-                             bg=bg_color, fg='#374151', anchor='w')
-        name_label.place(relx=0.12, y=8, relwidth=0.25)
-        name_label.config(padx=18)
+                             bg=bg_color, fg='#374151', anchor='w', padx=18)
+        name_label.place(relx=RICE_COLS['name']['start'], y=8, relwidth=RICE_COLS['name']['width'])
         
         # Type
         type_label = tk.Label(row_frame, text=type_name or '', font=('Segoe UI', 9), 
-                             bg=bg_color, fg='#374151', anchor='w')
-        type_label.place(relx=0.37, y=8, relwidth=0.18)
-        type_label.config(padx=18)
+                             bg=bg_color, fg='#374151', anchor='w', padx=18)
+        type_label.place(relx=RICE_COLS['type']['start'], y=8, relwidth=RICE_COLS['type']['width'])
         
         # Channel
         channel_label = tk.Label(row_frame, text=channel_name or '', font=('Segoe UI', 9), 
-                                bg=bg_color, fg='#374151', anchor='w')
-        channel_label.place(relx=0.55, y=8, relwidth=0.12)
-        channel_label.config(padx=18)
+                                bg=bg_color, fg='#374151', anchor='w', padx=18)
+        channel_label.place(relx=RICE_COLS['channel']['start'], y=8, relwidth=RICE_COLS['channel']['width'])
         
         # SFTP
         sftp_label = tk.Label(row_frame, text=sftp_profile_name or '', font=('Segoe UI', 9), 
-                             bg=bg_color, fg='#374151', anchor='w')
-        sftp_label.place(relx=0.67, y=8, relwidth=0.13)
-        sftp_label.config(padx=18)
+                             bg=bg_color, fg='#374151', anchor='w', padx=18)
+        sftp_label.place(relx=RICE_COLS['sftp']['start'], y=8, relwidth=RICE_COLS['sftp']['width'])
         
-        # Actions buttons
+        # Actions buttons - Primary + Menu approach
         actions_frame = tk.Frame(row_frame, bg=bg_color)
-        actions_frame.place(relx=0.80, y=5, relwidth=0.2, height=25)
+        actions_frame.place(relx=RICE_COLS['actions']['start'], y=5, relwidth=RICE_COLS['actions']['width'], height=25)
         
-        # Edit button
-        edit_btn = tk.Button(actions_frame, text="Edit", font=('Segoe UI', 8), 
-                            bg='#10b981', fg='#ffffff', relief='flat', padx=8, pady=2, 
+        # Edit button (primary action for RICE)
+        edit_btn = tk.Button(actions_frame, text="✎ Edit", font=('Segoe UI', 8), 
+                            bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=2, 
                             cursor='hand2', bd=0, highlightthickness=0,
                             command=lambda: self.edit_rice_profile(profile_id))
-        edit_btn.pack(side='left', padx=(0, 2))
+        edit_btn.pack(side='left')
         
-        # Duplicate button
-        duplicate_btn = tk.Button(actions_frame, text="Duplicate", font=('Segoe UI', 8), 
-                                 bg='#8b5cf6', fg='#ffffff', relief='flat', padx=8, pady=2, 
-                                 cursor='hand2', bd=0, highlightthickness=0,
-                                 command=lambda: self.duplicate_rice_profile(profile_id))
-        duplicate_btn.pack(side='left', padx=(0, 2))
+        # More actions menu button
+        more_btn = tk.Button(actions_frame, text="•••", font=('Segoe UI', 8), 
+                            bg='#6b7280', fg='#ffffff', relief='flat', padx=6, pady=2, 
+                            cursor='hand2', bd=0, highlightthickness=0,
+                            command=lambda: self._show_rice_actions_menu(more_btn, profile_id))
+        more_btn.pack(side='left')
         
-        # Delete button
-        delete_btn = tk.Button(actions_frame, text="Delete", font=('Segoe UI', 8), 
-                              bg='#ef4444', fg='#ffffff', relief='flat', padx=8, pady=2, 
-                              cursor='hand2', bd=0, highlightthickness=0,
-                              command=lambda: self.delete_rice_profile(profile_id))
-        delete_btn.pack(side='left')
-        
-        # Add hover effect
+        # Enhanced hover effect
         def on_enter(e):
             if not hasattr(self, 'selected_rice_row') or row_frame != self.selected_rice_row:
-                row_frame.config(bg='#e5e7eb')
+                row_frame.config(bg='#f8fafc')
                 for child in row_frame.winfo_children():
                     if isinstance(child, tk.Label):
-                        child.config(bg='#e5e7eb')
+                        child.config(bg='#f8fafc')
                     elif isinstance(child, tk.Frame):
-                        child.config(bg='#e5e7eb')
+                        child.config(bg='#f8fafc')
         
         def on_leave(e):
             if not hasattr(self, 'selected_rice_row') or row_frame != self.selected_rice_row:
@@ -351,7 +525,157 @@ class RiceDataManager:
             child.bind('<Button-1>', on_click)
             child.configure(cursor='hand2')
         
+        # Add mouse wheel scrolling to row and all its children
+        def _on_row_mousewheel(event):
+            # Find the canvas by traversing up the widget hierarchy
+            widget = row_frame
+            while widget and not isinstance(widget.master, tk.Canvas):
+                widget = widget.master
+            if widget and isinstance(widget.master, tk.Canvas):
+                widget.master.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind mouse wheel with scroll prevention for insufficient content
+        def _on_row_mousewheel_safe(event):
+            # Only scroll if content height exceeds canvas height
+            widget = row_frame
+            while widget and not isinstance(widget.master, tk.Canvas):
+                widget = widget.master
+            if widget and isinstance(widget.master, tk.Canvas):
+                canvas = widget.master
+                canvas.update_idletasks()
+                content_height = canvas.bbox("all")[3] if canvas.bbox("all") else 0
+                canvas_height = canvas.winfo_height()
+                if content_height > canvas_height:
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        row_frame.bind("<MouseWheel>", _on_row_mousewheel_safe)
+        for child in row_frame.winfo_children():
+            child.bind("<MouseWheel>", _on_row_mousewheel_safe)
+            # Also bind to grandchildren (buttons in action frames)
+            if hasattr(child, 'winfo_children'):
+                for grandchild in child.winfo_children():
+                    grandchild.bind("<MouseWheel>", _on_row_mousewheel_safe)
+        
         return row_frame
+    
+    def _create_rice_empty_state(self, parent):
+        """Create empty state for RICE profiles"""
+        empty_frame = tk.Frame(parent, bg='#ffffff', height=120)
+        empty_frame.pack(fill='x', pady=10)
+        empty_frame.pack_propagate(False)
+        
+        # Center content
+        content_frame = tk.Frame(empty_frame, bg='#ffffff')
+        content_frame.pack(expand=True)
+        
+        # Icon and message
+        tk.Label(content_frame, text="📋", font=('Segoe UI', 24), bg='#ffffff', fg='#9ca3af').pack(pady=(0, 5))
+        tk.Label(content_frame, text="No RICE Items Found", font=('Segoe UI', 11, 'bold'), bg='#ffffff', fg='#374151').pack()
+        tk.Label(content_frame, text="Get started by creating your first RICE item for testing", 
+                font=('Segoe UI', 9), bg='#ffffff', fg='#6b7280').pack(pady=(3, 0))
+        
+        # Disable mouse wheel scrolling for empty state
+        def _disable_scroll(event):
+            return "break"
+        
+        empty_frame.bind("<MouseWheel>", _disable_scroll)
+        content_frame.bind("<MouseWheel>", _disable_scroll)
+        
+        return empty_frame
+    
+    def _create_scenarios_empty_state(self, parent):
+        """Create empty state for scenarios"""
+        empty_frame = tk.Frame(parent, bg='#ffffff', height=100)
+        empty_frame.pack(fill='x', pady=10)
+        empty_frame.pack_propagate(False)
+        
+        # Center content
+        content_frame = tk.Frame(empty_frame, bg='#ffffff')
+        content_frame.pack(expand=True)
+        
+        # Get responsive values for proper scaling
+        if hasattr(self, 'responsive_config') and self.responsive_config:
+            scale_factor = self.responsive_config.get('scale_factor', 1.0)
+        else:
+            scale_factor = 1.0
+        
+        # Dynamic font sizes and padding for scenarios with proper responsive scaling
+        icon_size = max(28, int(36 * scale_factor))
+        title_size = max(12, int(14 * scale_factor))
+        desc_size = max(9, int(10 * scale_factor))
+        btn_size = max(9, int(10 * scale_factor))
+        btn_padx = max(20, int(35 * scale_factor))
+        btn_pady = max(10, int(12 * scale_factor))
+        
+        if self.current_profile:
+            # Has RICE selected but no scenarios
+            tk.Label(content_frame, text="🎯", font=('Segoe UI', 20), bg='#ffffff', fg='#9ca3af').pack(pady=(0, 5))
+            tk.Label(content_frame, text="No Test Scenarios Yet", font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#374151').pack()
+            tk.Label(content_frame, text="Add test scenarios to start automating your testing process", 
+                    font=('Segoe UI', 8), bg='#ffffff', fg='#6b7280').pack(pady=(2, 0))
+        else:
+            # No RICE selected
+            tk.Label(content_frame, text="👆", font=('Segoe UI', 20), bg='#ffffff', fg='#9ca3af').pack(pady=(0, 5))
+            tk.Label(content_frame, text="Select a RICE Item Above", font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#374151').pack()
+            tk.Label(content_frame, text="Choose a RICE item from the list above to view its test scenarios", 
+                    font=('Segoe UI', 8), bg='#ffffff', fg='#6b7280').pack(pady=(2, 0))
+        
+        # Disable mouse wheel scrolling for empty state
+        def _disable_scroll(event):
+            return "break"
+        
+        empty_frame.bind("<MouseWheel>", _disable_scroll)
+        content_frame.bind("<MouseWheel>", _disable_scroll)
+        
+        return empty_frame
+    
+    def _trigger_add_rice(self):
+        """Trigger add RICE profile from empty state"""
+        if hasattr(self, '_rice_manager_ref') and self._rice_manager_ref:
+            self._rice_manager_ref.add_rice_profile()
+    
+    def _trigger_add_scenario(self):
+        """Trigger add scenario from empty state"""
+        if hasattr(self, '_rice_manager_ref') and self._rice_manager_ref:
+            self._rice_manager_ref.add_scenario()
+    
+    def _update_filter_options(self, ui_components):
+        """Update filter dropdown options based on available data"""
+        try:
+            # Get unique types from database
+            cursor = self.db_manager.conn.cursor()
+            
+            # Get types that are actually used in rice_profiles
+            cursor.execute("""
+                SELECT DISTINCT rt.type_name FROM rice_types rt
+                JOIN rice_profiles rp ON rp.type = rt.type_name
+                WHERE rp.user_id = ?
+                ORDER BY rt.type_name
+            """, (self.db_manager.user_id,))
+            types = ["All"] + [row[0] for row in cursor.fetchall()]
+            
+            print(f"DEBUG: Found types for filter: {types}")
+            
+            # Update type filter dropdown directly from ui_components
+            if 'rice_type_filter' in ui_components:
+                try:
+                    ui_components['rice_type_filter']['values'] = types
+                    print(f"DEBUG: Updated type filter with {len(types)} options")
+                except Exception as e:
+                    print(f"DEBUG: Could not update type filter: {e}")
+            
+            # Also try to update via rice_ui_ref if available
+            if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref and hasattr(self._rice_ui_ref, 'rice_type_filter'):
+                try:
+                    self._rice_ui_ref.rice_type_filter['values'] = types
+                    print(f"DEBUG: Updated type filter via rice_ui_ref")
+                except Exception as e:
+                    print(f"DEBUG: Could not update type filter via rice_ui_ref: {e}")
+                        
+        except Exception as e:
+            print(f"DEBUG: Error in _update_filter_options: {e}")
+            # Ignore errors during filter update
+            pass
     
     def _select_rice_profile(self, profile_id, rice_id, row_frame):
         """Select a RICE profile and load its scenarios"""
@@ -367,10 +691,10 @@ class RiceDataManager:
                     except:
                         original_bg = '#ffffff'
                     
-                    self.selected_rice_row.config(bg=original_bg)
+                    self.selected_rice_row.config(bg=original_bg, relief='flat', bd=0)
                     for child in self.selected_rice_row.winfo_children():
                         if isinstance(child, tk.Label):
-                            child.config(bg=original_bg)
+                            child.config(bg=original_bg, fg='#374151')
                         elif isinstance(child, tk.Frame):
                             child.config(bg=original_bg)
             except tk.TclError:
@@ -382,12 +706,12 @@ class RiceDataManager:
         self.selected_rice_profile = profile_id
         self.current_profile = profile_id
         
-        # Highlight selected row
+        # Enhanced selection highlighting with blue accent
         try:
-            row_frame.config(bg='#dbeafe')
+            row_frame.config(bg='#dbeafe', relief='solid', bd=1)
             for child in row_frame.winfo_children():
                 if isinstance(child, tk.Label):
-                    child.config(bg='#dbeafe')
+                    child.config(bg='#dbeafe', fg='#1e40af')
                 elif isinstance(child, tk.Frame):
                     child.config(bg='#dbeafe')
         except tk.TclError:
@@ -413,24 +737,36 @@ class RiceDataManager:
         row_frame.pack(fill='x')
         row_frame.pack_propagate(False)
         
+        # Get column configuration from UI (passed via rice_ui_ref)
+        if hasattr(self, '_rice_ui_ref') and self._rice_ui_ref and hasattr(self._rice_ui_ref, 'SCENARIOS_COLUMNS'):
+            SCENARIO_COLS = self._rice_ui_ref.SCENARIOS_COLUMNS
+        else:
+            # Fallback configuration
+            SCENARIO_COLS = {
+                'scenario': {'start': 0.0, 'width': 0.10},
+                'description': {'start': 0.10, 'width': 0.35},
+                'result': {'start': 0.45, 'width': 0.08},
+                'steps': {'start': 0.53, 'width': 0.07},
+                'file': {'start': 0.60, 'width': 0.06},
+                'screenshot': {'start': 0.66, 'width': 0.07},
+                'actions': {'start': 0.73, 'width': 0.27}
+            }
+        
         # Scenario number
         scenario_label = tk.Label(row_frame, text=f"#{scenario_number}", font=('Segoe UI', 9), 
-                                 bg=bg_color, fg='#374151', anchor='w')
-        scenario_label.place(x=10, y=8, width=100)
-        scenario_label.config(padx=18)
+                                 bg=bg_color, fg='#374151', anchor='w', padx=18)
+        scenario_label.place(relx=SCENARIO_COLS['scenario']['start'], y=8, relwidth=SCENARIO_COLS['scenario']['width'])
         
         # Description
         desc_label = tk.Label(row_frame, text=description or '', font=('Segoe UI', 9), 
-                             bg=bg_color, fg='#374151', anchor='w')
-        desc_label.place(x=120, y=8, relwidth=0.4)
-        desc_label.config(padx=18)
+                             bg=bg_color, fg='#374151', anchor='w', padx=18)
+        desc_label.place(relx=SCENARIO_COLS['description']['start'], y=8, relwidth=SCENARIO_COLS['description']['width'])
         
         # Result
         result_color = '#10b981' if result == 'Passed' else '#ef4444' if result == 'Failed' else '#6b7280'
         result_label = tk.Label(row_frame, text=result or 'Not run', font=('Segoe UI', 9), 
-                               bg=bg_color, fg=result_color, anchor='w')
-        result_label.place(relx=0.45, y=8, relwidth=0.08)
-        result_label.config(padx=18)
+                               bg=bg_color, fg=result_color, anchor='w', padx=18)
+        result_label.place(relx=SCENARIO_COLS['result']['start'], y=8, relwidth=SCENARIO_COLS['result']['width'])
         
         # Steps (get actual count from database)
         try:
@@ -446,7 +782,7 @@ class RiceDataManager:
         
         # Steps with View button
         steps_frame = tk.Frame(row_frame, bg=bg_color)
-        steps_frame.place(relx=0.53, y=5, relwidth=0.07, height=25)
+        steps_frame.place(relx=SCENARIO_COLS['steps']['start'], y=5, relwidth=SCENARIO_COLS['steps']['width'], height=25)
         
         if step_count > 0:
             steps_btn = tk.Button(steps_frame, text=f"📋 {step_count}", font=('Segoe UI', 8), 
@@ -461,7 +797,7 @@ class RiceDataManager:
         
         # File download button
         file_frame = tk.Frame(row_frame, bg=bg_color)
-        file_frame.place(relx=0.60, y=5, relwidth=0.09, height=25)
+        file_frame.place(relx=SCENARIO_COLS['file']['start'], y=5, relwidth=SCENARIO_COLS['file']['width'], height=25)
         
         if file_path:
             file_btn = tk.Button(file_frame, text="📁", font=('Segoe UI', 10), 
@@ -472,7 +808,7 @@ class RiceDataManager:
         
         # Screenshot button
         screenshot_frame = tk.Frame(row_frame, bg=bg_color)
-        screenshot_frame.place(relx=0.69, y=5, relwidth=0.09, height=25)
+        screenshot_frame.place(relx=SCENARIO_COLS['screenshot']['start'], y=5, relwidth=SCENARIO_COLS['screenshot']['width'], height=25)
         
         screenshot_btn = tk.Button(screenshot_frame, text="📷", font=('Segoe UI', 10), 
                                   bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=2, 
@@ -480,44 +816,23 @@ class RiceDataManager:
                                   command=lambda: self._view_screenshots(scenario_id))
         screenshot_btn.pack()
         
-        # Actions buttons
+        # Actions buttons - Primary + Menu approach
         actions_frame = tk.Frame(row_frame, bg=bg_color)
-        actions_frame.place(relx=0.78, y=5, relwidth=0.22, height=25)
+        actions_frame.place(relx=SCENARIO_COLS['actions']['start'], y=5, relwidth=SCENARIO_COLS['actions']['width'], height=25)
         
-        # Run button
-        run_btn = tk.Button(actions_frame, text="Run", font=('Segoe UI', 8), 
-                           bg='#10b981', fg='#ffffff', relief='flat', padx=4, pady=2, 
+        # Run button (primary action for scenarios)
+        run_btn = tk.Button(actions_frame, text="▶ Run", font=('Segoe UI', 8), 
+                           bg='#10b981', fg='#ffffff', relief='flat', padx=8, pady=2, 
                            cursor='hand2', bd=0, highlightthickness=0,
                            command=lambda: self._run_scenario(scenario_id))
-        run_btn.pack(side='left', padx=(0, 1))
+        run_btn.pack(side='left', padx=(0, 5))
         
-        # Edit button
-        edit_btn = tk.Button(actions_frame, text="Edit", font=('Segoe UI', 8), 
-                            bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=2, 
+        # More actions menu button
+        more_btn = tk.Button(actions_frame, text="•••", font=('Segoe UI', 8), 
+                            bg='#6b7280', fg='#ffffff', relief='flat', padx=6, pady=2, 
                             cursor='hand2', bd=0, highlightthickness=0,
-                            command=lambda: self._edit_scenario(scenario_id))
-        edit_btn.pack(side='left', padx=(0, 1))
-        
-        # Duplicate button
-        duplicate_btn = tk.Button(actions_frame, text="Duplicate", font=('Segoe UI', 8), 
-                                 bg='#8b5cf6', fg='#ffffff', relief='flat', padx=4, pady=2, 
-                                 cursor='hand2', bd=0, highlightthickness=0,
-                                 command=lambda: self._duplicate_scenario(scenario_id))
-        duplicate_btn.pack(side='left', padx=(0, 1))
-        
-        # Reset button
-        reset_btn = tk.Button(actions_frame, text="Reset", font=('Segoe UI', 8), 
-                             bg='#f59e0b', fg='#ffffff', relief='flat', padx=4, pady=2, 
-                             cursor='hand2', bd=0, highlightthickness=0,
-                             command=lambda: self.reset_scenario(scenario_id))
-        reset_btn.pack(side='left', padx=(0, 1))
-        
-        # Delete button
-        delete_btn = tk.Button(actions_frame, text="Delete", font=('Segoe UI', 8), 
-                              bg='#ef4444', fg='#ffffff', relief='flat', padx=4, pady=2, 
-                              cursor='hand2', bd=0, highlightthickness=0,
-                              command=lambda: self.delete_scenario(scenario_id))
-        delete_btn.pack(side='left')
+                            command=lambda: self._show_scenario_actions_menu(more_btn, scenario_id))
+        more_btn.pack(side='left')
         
         # Add click handler for row selection
         def on_click(e):
@@ -532,15 +847,46 @@ class RiceDataManager:
             child.bind('<Button-1>', on_click)
             child.configure(cursor='hand2')
         
-        # Add hover effect
+        # Add mouse wheel scrolling to scenario row and all its children
+        def _on_scenario_row_mousewheel(event):
+            # Find the canvas by traversing up the widget hierarchy
+            widget = row_frame
+            while widget and not isinstance(widget.master, tk.Canvas):
+                widget = widget.master
+            if widget and isinstance(widget.master, tk.Canvas):
+                widget.master.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        # Bind mouse wheel with scroll prevention for insufficient content
+        def _on_scenario_row_mousewheel_safe(event):
+            # Only scroll if content height exceeds canvas height
+            widget = row_frame
+            while widget and not isinstance(widget.master, tk.Canvas):
+                widget = widget.master
+            if widget and isinstance(widget.master, tk.Canvas):
+                canvas = widget.master
+                canvas.update_idletasks()
+                content_height = canvas.bbox("all")[3] if canvas.bbox("all") else 0
+                canvas_height = canvas.winfo_height()
+                if content_height > canvas_height:
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        row_frame.bind("<MouseWheel>", _on_scenario_row_mousewheel_safe)
+        for child in row_frame.winfo_children():
+            child.bind("<MouseWheel>", _on_scenario_row_mousewheel_safe)
+            # Also bind to grandchildren (buttons in action frames)
+            if hasattr(child, 'winfo_children'):
+                for grandchild in child.winfo_children():
+                    grandchild.bind("<MouseWheel>", _on_scenario_row_mousewheel_safe)
+        
+        # Enhanced hover effect for scenarios
         def on_enter(e):
             if not hasattr(self, 'selected_scenario_row') or row_frame != self.selected_scenario_row:
-                row_frame.config(bg='#e5e7eb')
+                row_frame.config(bg='#f8fafc')
                 for child in row_frame.winfo_children():
                     if isinstance(child, tk.Label):
-                        child.config(bg='#e5e7eb')
+                        child.config(bg='#f8fafc')
                     elif isinstance(child, tk.Frame):
-                        child.config(bg='#e5e7eb')
+                        child.config(bg='#f8fafc')
         
         def on_leave(e):
             if not hasattr(self, 'selected_scenario_row') or row_frame != self.selected_scenario_row:
@@ -564,10 +910,16 @@ class RiceDataManager:
             try:
                 row_index = list(self.selected_scenario_row.master.winfo_children()).index(self.selected_scenario_row)
                 original_bg = '#ffffff' if row_index % 2 == 0 else '#f9fafb'
-                self.selected_scenario_row.config(bg=original_bg)
+                self.selected_scenario_row.config(bg=original_bg, relief='flat', bd=0)
                 for child in self.selected_scenario_row.winfo_children():
                     if isinstance(child, tk.Label):
-                        child.config(bg=original_bg)
+                        # Reset text color based on content
+                        if 'Passed' in child.cget('text'):
+                            child.config(bg=original_bg, fg='#10b981')
+                        elif 'Failed' in child.cget('text'):
+                            child.config(bg=original_bg, fg='#ef4444')
+                        else:
+                            child.config(bg=original_bg, fg='#374151')
                     elif isinstance(child, tk.Frame):
                         child.config(bg=original_bg)
             except:
@@ -577,11 +929,11 @@ class RiceDataManager:
         self.selected_scenario_row = row_frame
         self.selected_scenario_id = scenario_id
         
-        # Highlight selected row
-        row_frame.config(bg='#dbeafe')
+        # Enhanced selection highlighting for scenarios
+        row_frame.config(bg='#dbeafe', relief='solid', bd=1)
         for child in row_frame.winfo_children():
             if isinstance(child, tk.Label):
-                child.config(bg='#dbeafe')
+                child.config(bg='#dbeafe', fg='#1e40af')
             elif isinstance(child, tk.Frame):
                 child.config(bg='#dbeafe')
     
@@ -850,6 +1202,27 @@ class RiceDataManager:
                  relief='flat', padx=15, pady=6, cursor='hand2', bd=0, command=confirm_popup.destroy).pack(side="left")
         
         confirm_popup.focus_set()
+    
+    def _show_scenario_actions_menu(self, button, scenario_id):
+        """Show actions menu for scenario"""
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Create popup menu with left-aligned labels
+        menu = tk.Menu(button, tearoff=0, font=('Segoe UI', 9))
+        menu.add_command(label="✏️ Edit", command=lambda: self._edit_scenario(scenario_id))
+        menu.add_command(label="📋 Duplicate", command=lambda: self._duplicate_scenario(scenario_id))
+        menu.add_command(label="↻ Reset", command=lambda: self.reset_scenario(scenario_id))
+        menu.add_separator()
+        menu.add_command(label="🗑️ Delete", command=lambda: self.delete_scenario(scenario_id))
+        
+        # Show menu at button location
+        try:
+            x = button.winfo_rootx()
+            y = button.winfo_rooty() + button.winfo_height()
+            menu.post(x, y)
+        except:
+            pass
     
     def _duplicate_scenario(self, scenario_id):
         """Duplicate scenario with description and test steps only"""
