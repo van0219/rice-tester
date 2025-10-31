@@ -39,20 +39,20 @@ class RiceUI:
             'rice_id': {'start': 0.0, 'width': 0.10, 'title': 'RICE ID'},
             'name': {'start': 0.10, 'width': 0.35, 'title': 'Name'},
             'type': {'start': 0.45, 'width': 0.15, 'title': 'Type'},
-            'channel': {'start': 0.60, 'width': 0.10, 'title': 'Channel'},
-            'sftp': {'start': 0.70, 'width': 0.10, 'title': 'SFTP'},
-            'actions': {'start': 0.80, 'width': 0.20, 'title': 'Actions'}
+            'channel': {'start': 0.60, 'width': 0.15, 'title': 'Channel'},
+            'sftp': {'start': 0.75, 'width': 0.10, 'title': 'SFTP'},
+            'actions': {'start': 0.85, 'width': 0.15, 'title': 'Actions'}
         }
         
         # Perfect Scenarios table columns (balanced proportions)
         self.SCENARIOS_COLUMNS = {
-            'scenario': {'start': 0.0, 'width': 0.08, 'title': 'Scenario'},
-            'description': {'start': 0.08, 'width': 0.45, 'title': 'Description'},
-            'result': {'start': 0.53, 'width': 0.08, 'title': 'Result'},
-            'steps': {'start': 0.61, 'width': 0.06, 'title': 'Steps'},
-            'file': {'start': 0.67, 'width': 0.05, 'title': 'File'},
-            'screenshot': {'start': 0.72, 'width': 0.08, 'title': 'Screenshot'},
-            'actions': {'start': 0.80, 'width': 0.20, 'title': 'Actions'}
+            'scenario': {'start': 0.0, 'width': 0.10, 'title': 'Scenario'},
+            'description': {'start': 0.10, 'width': 0.35, 'title': 'Description'},
+            'result': {'start': 0.45, 'width': 0.10, 'title': 'Result'},
+            'steps': {'start': 0.55, 'width': 0.10, 'title': 'Steps'},
+            'file': {'start': 0.65, 'width': 0.10, 'title': 'File'},
+            'screenshot': {'start': 0.75, 'width': 0.10, 'title': 'Screenshot'},
+            'actions': {'start': 0.85, 'width': 0.15, 'title': 'Actions'}
         }
         
     def setup_rice_tab_content(self, parent):
@@ -141,31 +141,44 @@ class RiceUI:
         self.rice_type_filter.pack(side="left")
         self.rice_type_filter.bind('<<ComboboxSelected>>', self._on_filter_change)
         
-        # RICE profiles container
-        rice_container = tk.Frame(rice_frame, bg='#ffffff')
+        # RICE profiles container with modern styling
+        rice_container = tk.Frame(rice_frame, bg='#ffffff', relief='solid', bd=1)
         rice_container.pack(fill="x", pady=(0, 5))
         
-        # Enhanced headers with better styling
-        headers_frame = tk.Frame(rice_container, bg='#f3f4f6', height=30, relief='solid', bd=1)
+        # Modern table headers with SFTP styling
+        headers_frame = tk.Frame(rice_container, bg='#f3f4f6', height=35, relief='solid', bd=1)
         headers_frame.pack(fill="x")
         headers_frame.pack_propagate(False)
         
-        # Create aligned headers using class configuration
-        for col_id, config in self.RICE_COLUMNS.items():
-            label = tk.Label(headers_frame, text=config['title'], 
-                            font=('Segoe UI', 10, 'bold'),
-                            bg='#f3f4f6', fg='#1f2937', anchor='w', padx=18)
-            label.place(relx=config['start'], y=7, relwidth=config['width'])
-            
-            # Add separator line (except for last column)
-            if col_id != 'actions':
-                separator_x = config['start'] + config['width']
-                tk.Frame(headers_frame, bg='#d1d5db', width=1).place(
-                    relx=separator_x, y=3, height=24)
+        # Header labels with icons and better spacing
+        tk.Label(headers_frame, text="🆔 RICE ID", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0, y=8, relwidth=0.10)
+        
+        tk.Label(headers_frame, text="📝 Name", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.10, y=8, relwidth=0.35)
+        
+        tk.Label(headers_frame, text="🏷️ Type", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.45, y=8, relwidth=0.15)
+        
+        tk.Label(headers_frame, text="📡 Channel", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.60, y=8, relwidth=0.15)
+        
+        tk.Label(headers_frame, text="📁 SFTP", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.75, y=8, relwidth=0.10)
+        
+        tk.Label(headers_frame, text="⚙️ Actions", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='center', padx=10).place(relx=0.85, y=8, relwidth=0.15)
+        
+        # Column separators
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.10, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.45, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.60, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.75, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.85, y=4, height=27)
         
         # Responsive scrollable frame for RICE profiles
         rice_scroll_container = tk.Frame(rice_container, bg='#ffffff')
-        rice_scroll_container.pack(fill="x")
+        rice_scroll_container.pack(fill="x", padx=1, pady=(0, 1))
         
         # Canvas and scrollbar for RICE profiles with initial height
         self.rice_canvas = tk.Canvas(rice_scroll_container, bg='#ffffff', highlightthickness=0, height=200)
@@ -257,35 +270,52 @@ class RiceUI:
                                command=self.callbacks['run_all_scenarios'])
         run_all_btn.pack(side="left")
         
-        # Scenarios container
-        scenarios_container = tk.Frame(scenarios_frame, bg='#ffffff')
+        # Scenarios container with modern styling
+        scenarios_container = tk.Frame(scenarios_frame, bg='#ffffff', relief='solid', bd=1)
         scenarios_container.pack(fill="both", expand=True)
         
         # Scenarios header - pagination info removed
         scenarios_header_frame = tk.Frame(scenarios_container, bg='#ffffff')
         scenarios_header_frame.pack(fill="x", pady=(0, 5))
         
-        # Enhanced scenario headers
-        scenario_headers_frame = tk.Frame(scenarios_container, bg='#f9fafb', height=30, relief='solid', bd=1)
+        # Modern scenario headers with SFTP styling
+        scenario_headers_frame = tk.Frame(scenarios_container, bg='#f3f4f6', height=35, relief='solid', bd=1)
         scenario_headers_frame.pack(fill="x")
         scenario_headers_frame.pack_propagate(False)
         
-        # Create aligned scenario headers using class configuration
-        for col_id, config in self.SCENARIOS_COLUMNS.items():
-            label = tk.Label(scenario_headers_frame, text=config['title'], 
-                            font=('Segoe UI', 10, 'bold'),
-                            bg='#f9fafb', fg='#1f2937', anchor='w', padx=18)
-            label.place(relx=config['start'], y=7, relwidth=config['width'])
-            
-            # Add separator line (except for last column)
-            if col_id != 'actions':
-                separator_x = config['start'] + config['width']
-                tk.Frame(scenario_headers_frame, bg='#d1d5db', width=1).place(
-                    relx=separator_x, y=3, height=24)
+        # Header labels with icons and better spacing
+        tk.Label(scenario_headers_frame, text="#️⃣ Scenario", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0, y=8, relwidth=0.10)
+        
+        tk.Label(scenario_headers_frame, text="📝 Description", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.10, y=8, relwidth=0.35)
+        
+        tk.Label(scenario_headers_frame, text="✅ Result", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.45, y=8, relwidth=0.10)
+        
+        tk.Label(scenario_headers_frame, text="📋 Steps", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.55, y=8, relwidth=0.10)
+        
+        tk.Label(scenario_headers_frame, text="📁 File", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.65, y=8, relwidth=0.10)
+        
+        tk.Label(scenario_headers_frame, text="📷 Screenshot", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='w').place(relx=0.75, y=8, relwidth=0.10)
+        
+        tk.Label(scenario_headers_frame, text="⚙️ Actions", font=('Segoe UI', 10, 'bold'), 
+                bg='#f3f4f6', fg='#374151', anchor='center', padx=10).place(relx=0.85, y=8, relwidth=0.15)
+        
+        # Column separators
+        tk.Frame(scenario_headers_frame, bg='#9ca3af', width=1).place(relx=0.10, y=4, height=27)
+        tk.Frame(scenario_headers_frame, bg='#9ca3af', width=1).place(relx=0.45, y=4, height=27)
+        tk.Frame(scenario_headers_frame, bg='#9ca3af', width=1).place(relx=0.55, y=4, height=27)
+        tk.Frame(scenario_headers_frame, bg='#9ca3af', width=1).place(relx=0.65, y=4, height=27)
+        tk.Frame(scenario_headers_frame, bg='#9ca3af', width=1).place(relx=0.75, y=4, height=27)
+        tk.Frame(scenario_headers_frame, bg='#9ca3af', width=1).place(relx=0.85, y=4, height=27)
         
         # Responsive scrollable frame for scenarios
         scenarios_scroll_container = tk.Frame(scenarios_container, bg='#ffffff')
-        scenarios_scroll_container.pack(fill="both", expand=True)
+        scenarios_scroll_container.pack(fill="both", expand=True, padx=1, pady=(0, 1))
         
         # Canvas and scrollbar for scenarios
         self.scenarios_canvas = tk.Canvas(scenarios_scroll_container, bg='#ffffff', highlightthickness=0, height=150)
