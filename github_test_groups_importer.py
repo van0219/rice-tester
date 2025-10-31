@@ -12,7 +12,9 @@ from datetime import datetime
 from enhanced_popup_system import EnhancedPopupManager
 
 class GitHubTestGroupsImporter:
-    def __init__(self, parent=None):
+    def __init__(self, db_manager=None, show_popup=None, parent=None):
+        self.db_manager = db_manager
+        self.show_popup = show_popup
         self.parent = parent
         self.popup_manager = EnhancedPopupManager()
         self.github_token = None
