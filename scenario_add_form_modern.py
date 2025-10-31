@@ -138,16 +138,13 @@ class ModernScenarioAddForm:
         self.test_user_var = tk.StringVar()
         self.test_user_combo = ttk.Combobox(user_select_frame, textvariable=self.test_user_var,
                                            font=('Segoe UI', 10), state='readonly')
-        self.test_user_combo.pack(side='left', fill='x', expand=True, padx=(0, 10))
-        
-        manage_users_btn = tk.Button(user_select_frame, text="👥 Manage Users",
-                                    font=('Segoe UI', 9, 'bold'), bg='#8b5cf6', fg='white',
-                                    relief='flat', padx=12, pady=6, cursor='hand2', bd=0,
-                                    command=self._open_test_users_manager)
-        manage_users_btn.pack(side='right')
+        self.test_user_combo.pack(fill='x')
         
         # Load test users
         self._load_test_users()
+        
+        # Bind user selection change
+        self.test_user_combo.bind('<<ComboboxSelected>>', self._on_user_selected)
         
         # Initially hide login section
         self.test_user_frame.pack_forget()
@@ -243,6 +240,29 @@ class ModernScenarioAddForm:
         # Load test groups
         self._load_test_groups()
     
+    def _show_import_dialog(self):
+        """Show GitHub Test Groups import dialog"""
+        try:
+            from github_test_groups_importer import GitHubTestGroupsImporter
+            importer = GitHubTestGroupsImporter(self.db_manager, self.show_popup)
+            importer.show_import_browser(parent_dialog=self.dialog)
+        except ImportError:
+            self.popup_manager.show_info("Import Test Groups", 
+                "📥 GitHub Test Groups Import\n\nBrowse and import community test groups from GitHub repository.",
+                parent=self.dialog)
+        except Exception as e:
+            self.popup_manager.show_error("Error", f"Failed to open import dialog: {str(e)}", parent=self.dialog)
+    
+    def _on_user_selected(self, event=None):
+        """Handle test user selection change"""
+        self._update_selected_steps_display()
+    
+    def _on_groups_imported(self):
+        """Callback when test groups are imported"""
+        # Refresh test groups dropdown
+        self._load_test_groups()
+        self.popup_manager.show_success("Success", "Test groups imported successfully!")
+    
     def _create_action_buttons(self, parent, dialog, current_profile, scenario_number, refresh_callback):
         """Create modern action buttons"""
         # Right-aligned buttons
@@ -298,11 +318,7 @@ class ModernScenarioAddForm:
         except Exception as e:
             print(f"Error loading test users: {e}")
     
-    def _open_test_users_manager(self):
-        """Open Test Users management"""
-        self.popup_manager.show_info("Test Users", 
-            "Please use the sidebar menu to access 'Test Users' for user management.",
-            parent=self.dialog)
+
     
     def _load_test_groups(self):
         """Load test step groups"""
@@ -513,11 +529,7 @@ class ModernScenarioAddForm:
             print(f"Error getting login steps: {e}")
             return []
     
-    def _show_import_dialog(self):
-        """Show import test groups dialog (Phase 2 feature)"""
-        self.popup_manager.show_info("Import Test Groups", 
-            "📥 Import Test Groups\n\nComing in Phase 2:\n• Browse community test groups\n• Import from GitHub repository\n• One-click integration",
-            parent=self.dialog)
+
     
     def _save_scenario(self, dialog, current_profile, scenario_number, refresh_callback):
         """Save the new scenario"""
