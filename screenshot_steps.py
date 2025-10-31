@@ -116,6 +116,8 @@ class StepExecutor:
                 return self._execute_get_text(step_target, step_name, current_step, total_steps)
             elif step_type == "Get Attribute":
                 return self._execute_get_attribute(step_target, step_name, current_step, total_steps)
+            elif step_type == "Email Check":
+                return self._execute_email_check(step_target, step_name, current_step, total_steps)
             else:
                 self.safe_print(f"Unknown step type: {step_type}")
                 return False
@@ -597,3 +599,81 @@ class StepExecutor:
             return "Navigate"
         
         return "Element Click"  # Default fallback
+    
+    def _execute_email_check(self, step_target, step_name, current_step, total_steps):
+        """Execute email check step using Gmail API"""
+        if self.progress_callback:
+            self.progress_callback(current_step, total_steps, step_name, "Checking email...")
+        
+        try:
+            # Parse step target: "SEARCH:criteria | CONTENT:expected | TIMEOUT:60"
+            search_criteria = ""
+            expected_content = []
+            timeout = 60
+            
+            if step_target:
+                parts = step_target.split(" | ")
+                for part in parts:
+                    if part.startswith("SEARCH:"):
+                        search_criteria = part.replace("SEARCH:", "").strip()
+                    elif part.startswith("CONTENT:"):
+                        content_str = part.replace("CONTENT:", "").strip()
+                        if content_str:
+                            expected_content = [c.strip() for c in content_str.split(",")]
+                    elif part.startswith("TIMEOUT:"):
+                        try:
+                            timeout = int(part.replace("TIMEOUT:", "").strip())
+                        except:
+                            timeout = 60
+            
+            if not search_criteria:
+                self.safe_print("No search criteria provided for email check")
+                return False
+            
+            # Initialize Gmail checker
+            from gmail_email_checker import GmailEmailChecker
+            gmail_checker = GmailEmailChecker()
+            
+            # Update progress
+            if self.progress_callback:
+                self.progress_callback(current_step, total_steps, step_name, f"Searching: {search_criteria}")
+            
+            # Check for email
+            if expected_content:
+                # Verify email with content
+                success = gmail_checker.verify_email_content(search_criteria, expected_content, timeout)
+                if success:
+                    self.safe_print(f"Email found with expected content: {expected_content}")
+                else:
+                    self.safe_print(f"Email not found or missing expected content: {expected_content}")
+            else:
+                # Just check for email existence
+                email_data = gmail_checker.check_email_notification(search_criteria, timeout)
+                success = email_data is not None
+                if success:
+                    self.safe_print(f"Email found: {email_data.get('subject', 'No subject')}")
+                    
+                    # Create email screenshot for documentation
+                    try:
+                        screenshot_path = f"email_screenshot_step_{current_step}.png"
+                        gmail_checker.capture_email_content(email_data, screenshot_path)
+                        self.safe_print(f"Email screenshot saved: {screenshot_path}")
+                    except Exception as e:
+                        self.safe_print(f"Email screenshot failed: {e}")
+                else:
+                    self.safe_print(f"No email found matching criteria: {search_criteria}")
+            
+            # Update progress with result
+            if self.progress_callback:
+                if success:
+                    self.progress_callback(current_step, total_steps, step_name, "✅ Email verified")
+                else:
+                    self.progress_callback(current_step, total_steps, step_name, "❌ Email not found")
+            
+            return success
+            
+        except Exception as e:
+            self.safe_print(f"Email check failed: {e}")
+            if self.progress_callback:
+                self.progress_callback(current_step, total_steps, step_name, f"❌ Error: {str(e)}")
+            return False
