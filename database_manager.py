@@ -485,7 +485,7 @@ class DatabaseManager:
             FROM rice_profiles rp
             LEFT JOIN rice_types rt ON rp.type = rt.type_name
             WHERE rp.user_id = ? 
-            ORDER BY rp.rice_id
+            ORDER BY rp.created_at DESC
         """, (self.user_id,))
         return cursor.fetchall()
     
@@ -832,7 +832,7 @@ class DatabaseManager:
             FROM rice_profiles rp
             LEFT JOIN rice_types rt ON rp.type = rt.type_name
             WHERE rp.user_id = ? 
-            ORDER BY rp.rice_id
+            ORDER BY rp.created_at DESC
             LIMIT ? OFFSET ?
         """, (self.user_id, limit, offset))
         return cursor.fetchall()
@@ -977,6 +977,69 @@ class DatabaseManager:
         """, (self.user_id,))
         result = cursor.fetchone()
         return result[0] if result else None
+    
+    def get_rice_profiles_filtered(self, offset, limit, search_term="", type_filter="", client_filter=""):
+        """Get RICE profiles with search and filter"""
+        cursor = self.conn.cursor()
+        
+        # Build WHERE clause
+        where_conditions = ["rp.user_id = ?"]
+        params = [self.user_id]
+        
+        if search_term:
+            where_conditions.append("(rp.rice_id LIKE ? OR rp.name LIKE ? OR rp.client_name LIKE ?)")
+            search_param = f"%{search_term}%"
+            params.extend([search_param, search_param, search_param])
+        
+        if type_filter:
+            where_conditions.append("rt.type_name = ?")
+            params.append(type_filter)
+        
+        if client_filter:
+            where_conditions.append("rp.client_name = ?")
+            params.append(client_filter)
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        cursor.execute(f"""
+            SELECT rp.id, rp.rice_id, rp.name, rp.client_name, rp.channel_name, rp.sftp_profile_name, rt.type_name, rp.tenant
+            FROM rice_profiles rp
+            LEFT JOIN rice_types rt ON rp.type = rt.type_name
+            WHERE {where_clause}
+            ORDER BY rp.created_at DESC
+            LIMIT ? OFFSET ?
+        """, params + [limit, offset])
+        return cursor.fetchall()
+    
+    def get_rice_profiles_filtered_count(self, search_term="", type_filter="", client_filter=""):
+        """Get total count of filtered RICE profiles"""
+        cursor = self.conn.cursor()
+        
+        # Build WHERE clause
+        where_conditions = ["rp.user_id = ?"]
+        params = [self.user_id]
+        
+        if search_term:
+            where_conditions.append("(rp.rice_id LIKE ? OR rp.name LIKE ? OR rp.client_name LIKE ?)")
+            search_param = f"%{search_term}%"
+            params.extend([search_param, search_param, search_param])
+        
+        if type_filter:
+            where_conditions.append("rt.type_name = ?")
+            params.append(type_filter)
+        
+        if client_filter:
+            where_conditions.append("rp.client_name = ?")
+            params.append(client_filter)
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM rice_profiles rp
+            LEFT JOIN rice_types rt ON rp.type = rt.type_name
+            WHERE {where_clause}
+        """, params)
+        return cursor.fetchone()[0]
     
     def close(self):
         """Close database connection"""
