@@ -104,11 +104,17 @@ class AuthSystem:
         self.root.configure(bg='#f3f4f6')
         self.root.resizable(True, True)
         
-        # Start in full screen (maximized)
+        # Start hidden to prevent size glitch
+        self.root.withdraw()
+        
+        # Set proper size first
+        self.root.update_idletasks()
+        
+        # Start maximized after sizing
         self.root.state('zoomed')
         
-        # Ensure window is properly sized
-        self.root.update_idletasks()
+        # Show window after proper sizing
+        self.root.deiconify()
         
         # Remove auto-centering to allow dragging between monitors
         # self.root.bind('<Configure>', self.on_window_configure)
@@ -412,10 +418,10 @@ class AuthSystem:
         self.signup_btn = tk.Button(self.form_container, text="🏢 Create Account", 
                                    font=('Segoe UI', 12, 'bold'),
                                    bg='#10b981', fg='#ffffff', relief='flat',
-                                   padx=25, pady=15, cursor='hand2', bd=0,
+                                   padx=25, pady=12, cursor='hand2', bd=0,
                                    highlightthickness=0, activebackground='#059669',
                                    command=self.enhanced_signup)
-        self.signup_btn.pack(fill="x", pady=(20, 25), padx=5, ipady=8)
+        self.signup_btn.pack(fill="x", pady=(20, 25), padx=5, ipady=2)
         
         # Add hover effects for better UX
         def on_enter_signup(e):
@@ -432,12 +438,12 @@ class AuthSystem:
     def setup_modern_field(self, label_text, entry_name, show=None):
         """🎨 Setup modern input field with enhanced UX"""
         field_frame = tk.Frame(self.form_container, bg='#ffffff')
-        field_frame.pack(fill="x", pady=(0, 12))
+        field_frame.pack(fill="x", pady=(0, 8))
         
         # Modern label with better typography
         label = tk.Label(field_frame, text=label_text, 
                         font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#374151')
-        label.pack(anchor="w", pady=(0, 4))
+        label.pack(anchor="w", pady=(0, 3))
         
         # Enhanced entry with modern styling
         entry = tk.Entry(field_frame, font=('Segoe UI', 11), 
@@ -445,7 +451,7 @@ class AuthSystem:
                         bd=1, highlightthickness=2, highlightcolor='#1e40af',
                         insertbackground='#1e40af', show=show,
                         highlightbackground='#d1d5db')
-        entry.pack(fill="x", ipady=8)
+        entry.pack(fill="x", ipady=5)
         
         # Store reference
         setattr(self, entry_name, entry)
@@ -641,119 +647,143 @@ class AuthSystem:
                 print("Authenticating user credentials...")
 
     def show_loading_screen(self, full_name):
-        """📊 Show dashboard preview loading screen"""
+        """🚀 Modern fullscreen loading overlay with animations"""
         # Update login button to show loading
         self.login_btn.configure(text="⚙️ Launching...", state='disabled', bg='#10b981')
         
-        # Create clean dashboard preview overlay
+        # Create fullscreen loading overlay
         loading_overlay = tk.Toplevel(self.root)
-        loading_overlay.configure(bg='#f3f4f6')
-        loading_overlay.resizable(False, False)
-        loading_overlay.transient(self.root)
-        loading_overlay.overrideredirect(True)  # Remove title bar and decorations
-        loading_overlay.attributes('-topmost', True)  # Ensure it stays on top
-        loading_overlay.lift()  # Bring to front
-        loading_overlay.focus_force()  # Force focus
+        loading_overlay.configure(bg='#0f172a')
+        loading_overlay.overrideredirect(True)  # Remove window decorations
+        loading_overlay.attributes('-topmost', True)
         
-        # Dashboard preview frame
-        preview_frame = tk.Frame(loading_overlay, bg='#f3f4f6', padx=30, pady=20)
-        preview_frame.pack(fill="both", expand=True)
+        # Make it fullscreen
+        screen_width = loading_overlay.winfo_screenwidth()
+        screen_height = loading_overlay.winfo_screenheight()
+        loading_overlay.geometry(f"{screen_width}x{screen_height}+0+0")
         
-        # Header (simulating app header)
-        header_frame = tk.Frame(preview_frame, bg='#ffffff', relief='solid', bd=1, height=60)
-        header_frame.pack(fill="x", pady=(0, 15))
-        header_frame.pack_propagate(False)
+        loading_overlay.lift()
+        loading_overlay.focus_force()
         
-        tk.Label(header_frame, text="🏢 RICE Tester", font=('Segoe UI', 14, 'bold'), 
-                bg='#ffffff', fg='#1f2937').pack(side="left", padx=20, pady=15)
+        # Main container
+        main_container = tk.Frame(loading_overlay, bg='#0f172a')
+        main_container.pack(fill="both", expand=True)
         
-        tk.Label(header_frame, text=f"Welcome, {full_name}!", font=('Segoe UI', 10), 
-                bg='#ffffff', fg='#6b7280').pack(side="right", padx=20, pady=15)
+        # Center content frame
+        center_frame = tk.Frame(main_container, bg='#0f172a')
+        center_frame.pack(expand=True)
         
-        # Content area (simulating main interface)
-        content_frame = tk.Frame(preview_frame, bg='#ffffff', relief='solid', bd=1, height=200)
-        content_frame.pack(fill="x")
-        content_frame.pack_propagate(False)
+        # App logo/branding
+        tk.Label(center_frame, text="🧪", font=('Segoe UI', 48), 
+                bg='#0f172a', fg='#3b82f6').pack(pady=(0, 20))
         
-        # Loading content
-        loading_content = tk.Frame(content_frame, bg='#ffffff')
-        loading_content.pack(expand=True, fill="both", padx=40, pady=40)
+        tk.Label(center_frame, text="RICE Tester", font=('Segoe UI', 24, 'bold'), 
+                bg='#0f172a', fg='#ffffff').pack(pady=(0, 10))
         
-        # Spinner
-        self.spinner_label = tk.Label(loading_content, text="◐", font=('Segoe UI', 20), 
-                                     bg='#ffffff', fg='#1e40af')
-        self.spinner_label.pack(pady=(0, 15))
+        tk.Label(center_frame, text="FSM Automated Testing", font=('Segoe UI', 12), 
+                bg='#0f172a', fg='#94a3b8').pack(pady=(0, 40))
+        
+        # Animated spinner
+        self.spinner_label = tk.Label(center_frame, text="◐", font=('Segoe UI', 32), 
+                                     bg='#0f172a', fg='#3b82f6')
+        self.spinner_label.pack(pady=(0, 20))
         
         # Loading message
-        self.loading_text = tk.Label(loading_content, text="Initializing dashboard", 
-                                    font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#1f2937')
-        self.loading_text.pack()
+        self.loading_text = tk.Label(center_frame, text="Initializing dashboard", 
+                                    font=('Segoe UI', 14), bg='#0f172a', fg='#e2e8f0')
+        self.loading_text.pack(pady=(0, 10))
         
-        # Center the overlay
-        loading_overlay.update_idletasks()
-        center_dialog(loading_overlay, 500, 320)
+        # Welcome message
+        tk.Label(center_frame, text=f"Welcome back, {full_name}!", 
+                font=('Segoe UI', 11), bg='#0f172a', fg='#94a3b8').pack()
         
         # Start animations
+        self.animation_active = True
         self.loading_step = 0
-        self.animate_dashboard_loading()
-        
-        # Close overlay after 3 seconds
-        self.root.after(3000, lambda: self.safe_destroy_overlay(loading_overlay))
+        self.animate_loading_screen()
         
         # Store reference
         self.loading_overlay = loading_overlay
+        
+        # Transition after 3 seconds
+        self.root.after(3000, lambda: self.transition_to_main_app(loading_overlay))
     
-    def safe_destroy_overlay(self, overlay):
-        """Safely destroy loading overlay"""
+    def transition_to_main_app(self, overlay):
+        """Smooth transition from loading to main app"""
         try:
+            # Stop animation
+            self.animation_active = False
+            
+            # Clear references
+            if hasattr(self, 'loading_text'):
+                delattr(self, 'loading_text')
+            if hasattr(self, 'spinner_label'):
+                delattr(self, 'spinner_label')
+            
+            # Destroy overlay
             if overlay and overlay.winfo_exists():
                 overlay.destroy()
+            
+            # Show main window again
+            self.root.deiconify()
+            
+            # Exit authentication - main app will start
+            self.cleanup_and_exit()
+            
         except tk.TclError:
             pass  # Already destroyed
     
-    def animate_dashboard_loading(self):
-        """Animate dashboard loading with changing messages and spinner"""
+    def animate_loading_screen(self):
+        """🎬 Smooth loading screen animations"""
+        # Check if animation should continue
+        if not getattr(self, 'animation_active', False):
+            return
+            
         try:
             if not (hasattr(self, 'loading_text') and self.loading_text.winfo_exists()):
+                self.animation_active = False
                 return
         except tk.TclError:
-            # Widget was destroyed, stop animation
+            self.animation_active = False
             return
         
         # Loading messages sequence
         messages = [
             "Initializing dashboard",
-            "Loading RICE items", 
-            "Preparing test scenarios",
-            "Setting up workspace",
+            "Loading test cases", 
+            "Preparing workspace",
+            "Setting up connections",
             "Almost ready"
         ]
         
-        # Spinner animation
+        # Smooth spinner animation
         spinners = ["◐", "◓", "◑", "◒"]
         
-        # Get current message and add animated dots
-        message_index = (self.loading_step // 4) % len(messages)
-        dot_count = (self.loading_step % 4)
-        dots = "." * dot_count
+        # Get current message with animated dots
+        message_index = (self.loading_step // 5) % len(messages)
+        dot_count = (self.loading_step % 4) + 1
+        dots = "●" * dot_count + "○" * (3 - dot_count)
         
-        current_message = messages[message_index] + dots
+        current_message = messages[message_index]
         current_spinner = spinners[self.loading_step % len(spinners)]
         
-        # Update UI safely
+        # Update UI with smooth transitions
         try:
             self.loading_text.configure(text=current_message)
             if hasattr(self, 'spinner_label') and self.spinner_label.winfo_exists():
                 self.spinner_label.configure(text=current_spinner)
         except tk.TclError:
-            # Widget was destroyed, stop animation
             return
         
         self.loading_step += 1
         
-        # Continue animation every 300ms - only if widgets still exist
-        if hasattr(self, 'root') and self.root.winfo_exists():
-            self.root.after(300, self.animate_dashboard_loading)
+        # Continue animation every 250ms for smoother effect
+        if getattr(self, 'animation_active', False) and hasattr(self, 'root') and self.root.winfo_exists():
+            try:
+                self.root.after(250, self.animate_loading_screen)
+            except tk.TclError:
+                self.animation_active = False
+                return
 
     def enhanced_signup(self):
         """✨ Enhanced signup with validation"""
@@ -993,13 +1023,20 @@ class AuthSystem:
 
     def cleanup_and_exit(self):
         """🧹 Clean shutdown"""
-        # Clean destroy
-        if hasattr(self, 'root') and self.root:
-            try:
+        # Stop any pending after callbacks
+        try:
+            if hasattr(self, 'root') and self.root:
+                # Cancel any pending after callbacks
+                for after_id in getattr(self, '_after_ids', []):
+                    try:
+                        self.root.after_cancel(after_id)
+                    except:
+                        pass
+                
                 self.root.quit()
                 self.root.destroy()
-            except:
-                pass
+        except:
+            pass
     
     def save_remembered_credentials(self, username):
         """💾 Save credentials for Remember Me functionality"""
