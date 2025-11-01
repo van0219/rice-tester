@@ -27,7 +27,7 @@ except ImportError:
 class GitHubIntegrationManager:
     """
     GitHub Integration Module for RICE Tester
-    Secure access control - Only accessible to vansilleza_fpi
+    Secure access control - Only accessible to GitHub organization admins
     """
     
     def __init__(self, db_manager, show_popup_callback=None):
@@ -36,6 +36,10 @@ class GitHubIntegrationManager:
         self.github_token = None
         self.github_username = None
         self.repo_name = None
+        
+        # Initialize GitHub organization security
+        from github_org_security import GitHubOrgSecurity
+        self.org_security = GitHubOrgSecurity()
         
         # Try to load saved credentials
         self._load_github_credentials()
@@ -61,15 +65,23 @@ class GitHubIntegrationManager:
         """Create animated loading screen popup"""
         loading = tk.Toplevel()
         loading.title("🔍 Loading GitHub Integration")
-        loading.geometry("400x250")
+        
+        # Responsive loading screen
+        screen_width = loading.winfo_screenwidth()
+        screen_height = loading.winfo_screenheight()
+        
+        loading_width = max(350, min(450, int(screen_width * 0.25)))
+        loading_height = max(200, min(300, int(screen_height * 0.25)))
+        
+        loading.geometry(f"{loading_width}x{loading_height}")
         loading.configure(bg='#ffffff')
         loading.resizable(False, False)
         
         # Center on screen
         loading.update_idletasks()
-        x = (loading.winfo_screenwidth() // 2) - 200
-        y = (loading.winfo_screenheight() // 2) - 125
-        loading.geometry(f"400x250+{x}+{y}")
+        x = (screen_width // 2) - (loading_width // 2)
+        y = (screen_height // 2) - (loading_height // 2)
+        loading.geometry(f"{loading_width}x{loading_height}+{x}+{y}")
         
         try:
             loading.iconbitmap("infor_logo.ico")
@@ -130,10 +142,22 @@ class GitHubIntegrationManager:
             loading.after(500, lambda: self.animate_loading_screen(loading, dots_label, status_label))
     
     def _create_main_panel(self):
-        """Create the main GitHub integration panel"""
-        panel = create_enhanced_dialog(None, "🐙 GitHub Integration - RICE Tester CI/CD", 900, 808, modal=False)
-        panel.resizable(False, False)
-        panel.maxsize(900, 808)
+        """Create the unified GitHub management panel with tabs"""
+        # Get screen dimensions
+        import tkinter as tk
+        temp_root = tk.Tk()
+        temp_root.withdraw()
+        screen_width = temp_root.winfo_screenwidth()
+        screen_height = temp_root.winfo_screenheight()
+        temp_root.destroy()
+        
+        # Use 70% of screen height, min 600px, max 900px
+        dialog_height = max(600, min(900, int(screen_height * 0.7)))
+        dialog_width = max(800, min(1000, int(screen_width * 0.5)))
+        
+        panel = create_enhanced_dialog(None, "🐙 GitHub Management - Unified Interface", dialog_width, dialog_height, modal=False)
+        panel.resizable(True, True)
+        panel.minsize(800, 600)
         
         try:
             panel.iconbitmap("infor_logo.ico")
@@ -145,22 +169,25 @@ class GitHubIntegrationManager:
         header_frame.pack(fill="x")
         header_frame.pack_propagate(False)
         
-        title_label = tk.Label(header_frame, text="🐙 GitHub Integration Manager", 
+        title_label = tk.Label(header_frame, text="🐙 Unified GitHub Manager", 
                               font=('Segoe UI', 18, 'bold'), bg='#000000', fg='#ffffff')
         title_label.pack(side="left", padx=25, pady=25)
         
-        # Status indicator
-        status_label = tk.Label(header_frame, text="🔒 Authorized Access", 
-                             font=('Segoe UI', 11), bg='#000000', fg='#f6f8fa')
+        # User role indicator - force admin for vansilleza_fpi
+        is_admin = self._is_admin_user()
+        user_role = "Admin" if is_admin else "User"
+        role_color = "#10b981" if is_admin else "#3b82f6"
+        status_label = tk.Label(header_frame, text=f"👤 {user_role} Access ({self.github_username or 'Not logged in'})", 
+                             font=('Segoe UI', 11), bg='#000000', fg=role_color)
         status_label.pack(side="right", padx=25, pady=25)
         
-        # Main content
+        # Main content with tabs
         main_frame = tk.Frame(panel, bg='#ffffff', padx=25, pady=25)
         main_frame.pack(fill="both", expand=True)
         
         # Check if already logged in
         if self.github_token:
-            self._show_management_interface(main_frame)
+            self._show_tabbed_interface(main_frame)
         else:
             self._show_login_interface(main_frame)
     
@@ -229,7 +256,7 @@ class GitHubIntegrationManager:
                 bg='#fff8dc', fg='#6f4e00', justify="left").pack(anchor="w", pady=(5, 0))
     
     def _authenticate_github(self):
-        """Authenticate with GitHub using personal access token"""
+        """Authenticate with GitHub using personal access token and validate organization access"""
         token = self.token_entry.get().strip()
         username = self.username_entry.get().strip()
         
@@ -249,13 +276,36 @@ class GitHubIntegrationManager:
             if response.status_code == 200:
                 user_data = response.json()
                 if user_data['login'].lower() == username.lower():
+                    # Validate organization access
+                    self.org_security.github_token = token
+                    self.org_security.github_username = username
+                    
+                    is_admin, role, error = self.org_security.validate_admin_access(username)
+                    
+                    if error:
+                        self.show_popup("Organization Access Required", 
+                                       f"GitHub organization validation failed: {error}\n\n"
+                                       f"Please ensure you are a member of the Infor-FSM organization.", "error")
+                        return
+                    
+                    if not is_admin:
+                        self.show_popup("Admin Access Required", 
+                                       f"You have '{role}' access in the Infor-FSM organization.\n\n"
+                                       f"Admin or Owner role is required for GitHub Integration.\n\n"
+                                       f"Please contact your organization administrator.", "error")
+                        return
+                    
+                    # Success - user is authenticated and has admin access
                     self.github_token = token
                     self.github_username = username
+                    
+                    # Update local admin status
+                    self.org_security.update_local_admin_status(self.db_manager, self.db_manager.user_id, username)
                     
                     # Save credentials securely (encrypted)
                     self._save_github_credentials(token, username)
                     
-                    self.show_popup("Success", f"Successfully connected to GitHub as {username}!", "success")
+                    self.show_popup("Success", f"Successfully connected to GitHub as {username}!\n\nOrganization: Infor-FSM\nRole: {role.title()}", "success")
                     
                     # Refresh interface
                     for widget in self.token_entry.master.master.winfo_children():
@@ -270,26 +320,47 @@ class GitHubIntegrationManager:
         except Exception as e:
             self.show_popup("Connection Error", f"Failed to connect to GitHub: {str(e)}", "error")
     
-    def _show_management_interface(self, parent):
-        """Show GitHub management interface after successful login"""
-        # Status section
+    def _show_tabbed_interface(self, parent):
+        """Show tabbed interface for unified GitHub management"""
+        # Create notebook for tabs
+        notebook = ttk.Notebook(parent)
+        notebook.pack(fill="both", expand=True)
+        
+        # Tab 1: Application Distribution (Admin only)
+        is_admin = self._is_admin_user()
+        if is_admin:
+            app_frame = tk.Frame(notebook, bg='#ffffff')
+            notebook.add(app_frame, text="📦 Application Distribution")
+            self._show_application_distribution_tab(app_frame)
+        
+        # Tab 2: Test Groups Sharing (All users)
+        groups_frame = tk.Frame(notebook, bg='#ffffff')
+        notebook.add(groups_frame, text="🌐 Test Groups Sharing")
+        self._show_test_groups_sharing_tab(groups_frame)
+        
+        # Tab 3: Security Settings (Admin only)
+        if is_admin:
+            security_frame = tk.Frame(notebook, bg='#ffffff')
+            notebook.add(security_frame, text="🔐 Security Settings")
+            self._show_security_settings_tab(security_frame)
+    
+    def _show_application_distribution_tab(self, parent):
+        """Show application distribution tab (original GitHub integration)"""
+        # Admin status section
         status_frame = tk.Frame(parent, bg='#d1ecf1', relief='solid', bd=1, padx=20, pady=15)
         status_frame.pack(fill="x", pady=(0, 20))
         
-        tk.Label(status_frame, text="✅ Connected to GitHub", font=('Segoe UI', 14, 'bold'), 
+        tk.Label(status_frame, text="📦 Application Distribution (Admin)", font=('Segoe UI', 14, 'bold'), 
                 bg='#d1ecf1', fg='#0c5460').pack(anchor="w")
         
         account_info_frame = tk.Frame(status_frame, bg='#d1ecf1')
         account_info_frame.pack(fill="x", pady=(5, 0))
         
-        tk.Label(account_info_frame, text=f"Username: {self.github_username}", font=('Segoe UI', 10), 
+        tk.Label(account_info_frame, text=f"Connected: {self.github_username}", font=('Segoe UI', 10), 
                 bg='#d1ecf1', fg='#0c5460').pack(side="left")
         
-        # Switch Account button
-        switch_btn = tk.Button(account_info_frame, text="🔄 Switch Account", font=('Segoe UI', 9, 'bold'), 
-                              bg='#dc3545', fg='#ffffff', relief='flat', padx=10, pady=4, 
-                              cursor='hand2', bd=0, command=self._switch_github_account)
-        switch_btn.pack(side="right")
+        tk.Label(account_info_frame, text="Repository: rice-tester (Private)", font=('Segoe UI', 10), 
+                bg='#d1ecf1', fg='#0c5460').pack(side="right")
         
         # Repository management
         repo_frame = tk.Frame(parent, bg='#ffffff')
@@ -379,21 +450,15 @@ class GitHubIntegrationManager:
                            cursor='hand2', bd=0, command=self._copy_release_url)
         copy_btn.pack(anchor="w", pady=(10, 0))
         
-        # Progress section
-        progress_frame = tk.Frame(parent, bg='#f6f8fa', relief='solid', bd=1, padx=20, pady=15)
-        progress_frame.pack(fill="x", pady=(10, 0))
+        # Quick status
+        quick_status_frame = tk.Frame(parent, bg='#e8f5e8', relief='solid', bd=1, padx=15, pady=8)
+        quick_status_frame.pack(fill="x", pady=(10, 0))
         
-        tk.Label(progress_frame, text="📊 Setup Progress", font=('Segoe UI', 12, 'bold'), 
-                bg='#f6f8fa', fg='#24292e').pack(anchor="w", pady=(0, 10))
+        tk.Label(quick_status_frame, text="✅ Ready for CI/CD Operations", font=('Segoe UI', 10, 'bold'), 
+                bg='#e8f5e8', fg='#155724').pack(side="left")
         
-        self.progress_text = tk.Text(progress_frame, height=8, font=('Consolas', 9), 
-                                    bg='#ffffff', relief='solid', bd=1, wrap=tk.WORD, state=tk.DISABLED)
-        self.progress_text.pack(fill="x")
-        
-        # Show loading screen and check status asynchronously
-        self._show_loading_screen()
-        # Schedule status check after loading animation
-        self.progress_text.after(2000, self._check_and_show_status)
+        tk.Label(quick_status_frame, text="1️⃣ → 2️⃣ → 3️⃣ → 4️⃣", 
+                font=('Segoe UI', 9), bg='#e8f5e8', fg='#155724').pack(side="right")
     
     def _show_loading_screen(self):
         """Show animated loading screen while checking status"""
@@ -571,38 +636,138 @@ class GitHubIntegrationManager:
             return
         
         self.repo_name = repo_name
-        self._add_progress("Starting upload process...")
         
-        # Run upload in background thread to prevent UI freezing
+        # Show loading screen and run upload
         import threading
-        upload_thread = threading.Thread(target=self._perform_upload, daemon=True)
+        
+        # Get file count first
+        rice_dir = os.path.dirname(os.path.abspath(__file__))
+        files_to_upload = [f for f in os.listdir(rice_dir) if f.endswith('.py')]
+        essential_files = ['requirements.txt', 'README.md', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat',
+                          'infor_logo.ico', 'infor_logo.png', 'infor_logo_from_ico.png', 'fsm_tester.db', 'version.json']
+        files_to_upload.extend([f for f in essential_files if f not in files_to_upload])
+        
+        # Show loading screen
+        loading_screen = self._show_upload_loading_screen(len(files_to_upload))
+        
+        # Run upload in background
+        upload_thread = threading.Thread(target=self._perform_upload_with_progress, daemon=True)
         upload_thread.start()
     
-    def _perform_upload(self):
-        """Perform the actual upload in background thread"""
+    def _show_upload_loading_screen(self, total_files):
+        """Show modern loading screen during upload process"""
+        # Responsive loading screen size
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()
+        screen_height = root.winfo_screenheight()
+        root.destroy()
+        
+        loading_height = max(350, min(450, int(screen_height * 0.4)))
+        loading = create_enhanced_dialog(None, "📤 Uploading RICE Tester", 500, loading_height, modal=True)
+        loading.resizable(False, False)
+        
         try:
-            self._add_progress("Preparing file list...")
+            loading.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Header
+        header_frame = tk.Frame(loading, bg='#8250df', height=70)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text="📤 Uploading to GitHub", 
+                font=('Segoe UI', 16, 'bold'), bg='#8250df', fg='#ffffff').pack(expand=True)
+        
+        # Content
+        content_frame = tk.Frame(loading, bg='#ffffff', padx=30, pady=25)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Progress info
+        self.upload_status_label = tk.Label(content_frame, text="Preparing files...", 
+                                           font=('Segoe UI', 12), bg='#ffffff', fg='#374151')
+        self.upload_status_label.pack(pady=(0, 15))
+        
+        # Progress bar
+        self.upload_progress = ttk.Progressbar(content_frame, length=400, mode='determinate')
+        self.upload_progress.pack(pady=(0, 15))
+        
+        # File counter
+        self.upload_counter_label = tk.Label(content_frame, text="0 / 0 files uploaded", 
+                                            font=('Segoe UI', 10), bg='#ffffff', fg='#6b7280')
+        self.upload_counter_label.pack(pady=(0, 15))
+        
+        # Current file
+        self.current_file_label = tk.Label(content_frame, text="", 
+                                          font=('Segoe UI', 9), bg='#ffffff', fg='#8b5cf6')
+        self.current_file_label.pack()
+        
+        # Animated dots
+        self.dots_label = tk.Label(content_frame, text="●○○", 
+                                  font=('Segoe UI', 14), bg='#ffffff', fg='#8250df')
+        self.dots_label.pack(pady=(10, 0))
+        
+        self.upload_loading_dialog = loading
+        self.upload_total_files = total_files
+        self.upload_current_file = 0
+        
+        return loading
+    
+    def _update_upload_progress(self, filename, current, total, status="uploading"):
+        """Update upload progress display"""
+        if not hasattr(self, 'upload_loading_dialog') or not self.upload_loading_dialog.winfo_exists():
+            return
+        
+        try:
+            # Update progress bar
+            progress_percent = (current / total) * 100 if total > 0 else 0
+            self.upload_progress['value'] = progress_percent
+            
+            # Update status
+            if status == "uploading":
+                self.upload_status_label.config(text=f"Uploading {filename}...")
+            elif status == "success":
+                self.upload_status_label.config(text=f"✅ Uploaded {filename}")
+            elif status == "failed":
+                self.upload_status_label.config(text=f"❌ Failed: {filename}")
+            
+            # Update counter
+            self.upload_counter_label.config(text=f"{current} / {total} files processed")
+            
+            # Update current file
+            self.current_file_label.config(text=filename)
+            
+            # Animate dots
+            if hasattr(self, 'upload_dots_step'):
+                self.upload_dots_step = (self.upload_dots_step + 1) % 3
+            else:
+                self.upload_dots_step = 0
+            
+            dot_patterns = ["●○○", "○●○", "○○●"]
+            self.dots_label.config(text=dot_patterns[self.upload_dots_step])
+            
+            self.upload_loading_dialog.update()
+            
+        except Exception as e:
+            print(f"Progress update error: {e}")
+    
+    def _close_upload_loading_screen(self):
+        """Close upload loading screen"""
+        if hasattr(self, 'upload_loading_dialog') and self.upload_loading_dialog.winfo_exists():
+            self.upload_loading_dialog.destroy()
+    
+    def _perform_upload_with_progress(self):
+        """Perform upload with modern progress display"""
+        try:
             # Get current RICE Tester directory
             rice_dir = os.path.dirname(os.path.abspath(__file__))
             
-            # Dynamic file discovery - include all Python files and essential files
-            files_to_upload = []
-            
-            # Add all Python files
-            for file in os.listdir(rice_dir):
-                if file.endswith('.py'):
-                    files_to_upload.append(file)
-            
-            # Add essential non-Python files
-            essential_files = [
-                'requirements.txt', 'README.md', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat',
-                'infor_logo.ico', 'infor_logo.png', 'infor_logo_from_ico.png', 'fsm_tester.db', 'version.json', 
-                '.github_workflows_rice-tester-ci.yml', 'github_json.config'
-            ]
-            
-            for file in essential_files:
-                if file not in files_to_upload:
-                    files_to_upload.append(file)
+            # Dynamic file discovery
+            files_to_upload = [f for f in os.listdir(rice_dir) if f.endswith('.py')]
+            essential_files = ['requirements.txt', 'README.md', 'README_TEAM.txt', 'SETUP_FIRST_TIME.bat',
+                              'infor_logo.ico', 'infor_logo.png', 'infor_logo_from_ico.png', 'fsm_tester.db', 'version.json']
+            files_to_upload.extend([f for f in essential_files if f not in files_to_upload])
             
             # Remove security-sensitive files
             security_excluded = ['github_config.json', 'updater_config.json']
@@ -614,26 +779,23 @@ class GitHubIntegrationManager:
             }
             
             uploaded_count = 0
-            excluded_count = 0
             failed_files = []
-            
-            # Security-excluded files (already filtered out above)
-            security_excluded = ['github_config.json', 'updater_config.json']
-            
             total_files = len(files_to_upload)
+            
             for i, filename in enumerate(files_to_upload, 1):
                 file_path = os.path.join(rice_dir, filename)
                 
+                # Update progress
+                self._update_upload_progress(filename, i-1, total_files, "uploading")
+                
                 if os.path.exists(file_path):
                     try:
-                        self._add_progress(f"📤 Uploading {filename} ({i}/{total_files})...")
-                        
                         with open(file_path, 'rb') as f:
                             content = base64.b64encode(f.read()).decode('utf-8')
                         
                         url = f'https://api.github.com/repos/{self.github_username}/{self.repo_name}/contents/{filename}'
                         
-                        # Check if file already exists and get its SHA
+                        # Check if file exists
                         existing_response = requests.get(url, headers=headers, timeout=10)
                         
                         data = {
@@ -641,56 +803,43 @@ class GitHubIntegrationManager:
                             'content': content
                         }
                         
-                        # If file exists, include SHA for update
                         if existing_response.status_code == 200:
-                            existing_data = existing_response.json()
-                            data['sha'] = existing_data['sha']
+                            data['sha'] = existing_response.json()['sha']
                         
                         response = requests.put(url, headers=headers, json=data, timeout=30)
                         
                         if response.status_code in [200, 201]:
                             uploaded_count += 1
-                            self._add_progress(f"✅ Uploaded {filename} ({i}/{total_files})")
+                            self._update_upload_progress(filename, i, total_files, "success")
                         else:
-                            self._add_progress(f"⚠️ Failed to upload {filename} - Status: {response.status_code}")
                             failed_files.append(filename)
+                            self._update_upload_progress(filename, i, total_files, "failed")
                     
                     except Exception as e:
-                        self._add_progress(f"❌ Error uploading {filename}: {str(e)}")
                         failed_files.append(filename)
+                        self._update_upload_progress(filename, i, total_files, "failed")
                 else:
-                    # Check if this is a security-excluded file
-                    if filename in security_excluded:
-                        excluded_count += 1
-                        self._add_progress(f"🔒 Excluded for security: {filename}")
-                    else:
-                        self._add_progress(f"❌ File not found: {filename}")
-                        failed_files.append(filename)
+                    failed_files.append(filename)
+                    self._update_upload_progress(filename, i, total_files, "failed")
+                
+                # Small delay for smooth animation
+                import time
+                time.sleep(0.1)
             
-            # Calculate totals
-            total_expected = len(files_to_upload) - excluded_count
-            actual_failures = len(failed_files)
+            # Close loading screen
+            if hasattr(self, 'upload_loading_dialog'):
+                self.upload_loading_dialog.after(1000, self._close_upload_loading_screen)
             
-            self._add_progress(f"📁 Upload summary: {uploaded_count} uploaded, {excluded_count} excluded (security), {actual_failures} failed")
-            
-            if uploaded_count == total_expected and actual_failures == 0:
-                self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files\n🔒 {excluded_count} files excluded for security\n\nAll essential files uploaded successfully!", "success")
-            elif actual_failures == 0:
-                self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files\n🔒 {excluded_count} files excluded for security\n\nUpload completed successfully!", "success")
+            # Show results
+            if not failed_files:
+                self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files to GitHub!\n\nAll essential RICE Tester files are now available in your repository.", "success")
             else:
-                # Show only actual failures, not security exclusions
-                real_failures = [f for f in failed_files if f not in security_excluded]
-                if real_failures:
-                    self.show_popup("Partial Upload", f"✅ Uploaded: {uploaded_count} files\n🔒 Excluded: {excluded_count} files (security)\n❌ Failed: {len(real_failures)} files\n\nFailed files: {', '.join(real_failures)}", "warning")
-                else:
-                    self.show_popup("Upload Complete", f"✅ Successfully uploaded {uploaded_count} files\n🔒 {excluded_count} files excluded for security\n\nAll essential files uploaded successfully!", "success")
+                self.show_popup("Partial Upload", f"✅ Uploaded: {uploaded_count} files\n❌ Failed: {len(failed_files)} files\n\nFailed files: {', '.join(failed_files[:5])}{'...' if len(failed_files) > 5 else ''}", "warning")
             
         except Exception as e:
-            self._add_progress(f"❌ Upload error: {str(e)}")
-            # Use thread-safe popup call
-            import tkinter as tk
-            if hasattr(self, 'progress_text') and self.progress_text.winfo_exists():
-                self.progress_text.after(0, lambda: self.show_popup("Upload Error", f"Error uploading files: {str(e)}", "error"))
+            self._close_upload_loading_screen()
+            if hasattr(self, 'upload_loading_dialog'):
+                self.upload_loading_dialog.after(0, lambda: self.show_popup("Upload Error", f"Error uploading files: {str(e)}", "error"))
     
     def _setup_cicd(self):
         """Setup CI/CD pipeline"""
@@ -1030,7 +1179,15 @@ class GitHubIntegrationManager:
     
     def _show_file_comparison_dialog(self, files):
         """Show dialog for comparing and selecting files to pull"""
-        dialog = create_enhanced_dialog(None, "📥 Compare & Pull Files", 800, 600, modal=False)
+        # Responsive comparison dialog
+        import tkinter as tk
+        temp_root = tk.Tk()
+        temp_root.withdraw()
+        screen_height = temp_root.winfo_screenheight()
+        temp_root.destroy()
+        
+        dialog_height = max(500, min(700, int(screen_height * 0.6)))
+        dialog = create_enhanced_dialog(None, "📥 Compare & Pull Files", 800, dialog_height, modal=False)
         dialog.resizable(True, True)
         
         try:
@@ -1237,7 +1394,182 @@ class GitHubIntegrationManager:
                            f"Successfully downloaded {success_count} files from GitHub!", 
                            "success")
 
+    def _show_test_groups_sharing_tab(self, parent):
+        """Show test groups sharing tab for community collaboration"""
+        # Header
+        header_frame = tk.Frame(parent, bg='#f0f9ff', relief='solid', bd=1, padx=20, pady=15)
+        header_frame.pack(fill="x", pady=(0, 20))
+        
+        tk.Label(header_frame, text="🌐 Community Test Groups Sharing", font=('Segoe UI', 14, 'bold'), 
+                bg='#f0f9ff', fg='#1e40af').pack(anchor="w")
+        
+        tk.Label(header_frame, text="Share and discover test groups with the Infor FSM testing community", 
+                font=('Segoe UI', 10), bg='#f0f9ff', fg='#3730a3').pack(anchor="w", pady=(5, 0))
+        
+        # Repository info
+        repo_frame = tk.Frame(parent, bg='#ffffff')
+        repo_frame.pack(fill="x", pady=(0, 20))
+        
+        tk.Label(repo_frame, text="📁 Repository: rice-test-groups (Public)", font=('Segoe UI', 12, 'bold'), 
+                bg='#ffffff', fg='#24292e').pack(anchor="w", pady=(0, 10))
+        
+        # Actions
+        actions_frame = tk.Frame(repo_frame, bg='#ffffff')
+        actions_frame.pack(fill="x")
+        
+        # Share Test Group
+        share_btn = tk.Button(actions_frame, text="🌐 Share Test Group", font=('Segoe UI', 11, 'bold'), 
+                             bg='#0969da', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                             cursor='hand2', bd=0, command=self._share_test_group)
+        share_btn.pack(side="left", padx=(0, 15))
+        
+        # Browse Community Groups
+        browse_btn = tk.Button(actions_frame, text="📅 Browse Community Groups", font=('Segoe UI', 11, 'bold'), 
+                              bg='#8b5cf6', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                              cursor='hand2', bd=0, command=self._browse_community_groups)
+        browse_btn.pack(side="left", padx=(0, 15))
+        
+        # Import Groups
+        import_btn = tk.Button(actions_frame, text="📥 Import Groups", font=('Segoe UI', 11, 'bold'), 
+                              bg='#10b981', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                              cursor='hand2', bd=0, command=self._import_test_groups)
+        import_btn.pack(side="left")
+        
+        # Community stats
+        stats_frame = tk.Frame(parent, bg='#fef3c7', relief='solid', bd=1, padx=20, pady=15)
+        stats_frame.pack(fill="x", pady=(20, 0))
+        
+        tk.Label(stats_frame, text="📊 Community Statistics", font=('Segoe UI', 12, 'bold'), 
+                bg='#fef3c7', fg='#92400e').pack(anchor="w", pady=(0, 10))
+        
+        stats_content = tk.Frame(stats_frame, bg='#fef3c7')
+        stats_content.pack(fill="x")
+        
+        tk.Label(stats_content, text="• Available Test Groups: Loading...", 
+                font=('Segoe UI', 10), bg='#fef3c7', fg='#78350f').pack(anchor="w")
+        tk.Label(stats_content, text="• Community Contributors: Loading...", 
+                font=('Segoe UI', 10), bg='#fef3c7', fg='#78350f').pack(anchor="w")
+        tk.Label(stats_content, text="• Last Updated: Loading...", 
+                font=('Segoe UI', 10), bg='#fef3c7', fg='#78350f').pack(anchor="w")
+    
+    def _show_security_settings_tab(self, parent):
+        """Show security settings tab for admin configuration"""
+        # Header
+        header_frame = tk.Frame(parent, bg='#fef2f2', relief='solid', bd=1, padx=20, pady=15)
+        header_frame.pack(fill="x", pady=(0, 20))
+        
+        tk.Label(header_frame, text="🔐 Security & Access Control", font=('Segoe UI', 14, 'bold'), 
+                bg='#fef2f2', fg='#991b1b').pack(anchor="w")
+        
+        tk.Label(header_frame, text="Manage admin privileges and repository access control", 
+                font=('Segoe UI', 10), bg='#fef2f2', fg='#7f1d1d').pack(anchor="w", pady=(5, 0))
+        
+        # GitHub Organization
+        org_frame = tk.Frame(parent, bg='#ffffff')
+        org_frame.pack(fill="x", pady=(0, 20))
+        
+        tk.Label(org_frame, text="🏢 GitHub Organization: Infor-FSM", font=('Segoe UI', 12, 'bold'), 
+                bg='#ffffff', fg='#24292e').pack(anchor="w", pady=(0, 10))
+        
+        # Admin actions
+        admin_actions_frame = tk.Frame(org_frame, bg='#ffffff')
+        admin_actions_frame.pack(fill="x")
+        
+        # Validate Access
+        validate_btn = tk.Button(admin_actions_frame, text="✅ Validate Admin Access", font=('Segoe UI', 10, 'bold'), 
+                                bg='#059669', fg='#ffffff', relief='flat', padx=15, pady=8, 
+                                cursor='hand2', bd=0, command=self._validate_admin_access)
+        validate_btn.pack(side="left", padx=(0, 10))
+        
+        # Switch Account
+        switch_btn = tk.Button(admin_actions_frame, text="🔄 Switch Account", font=('Segoe UI', 10, 'bold'), 
+                              bg='#dc3545', fg='#ffffff', relief='flat', padx=15, pady=8, 
+                              cursor='hand2', bd=0, command=self._switch_github_account)
+        switch_btn.pack(side="left")
+        
+        # Security status
+        security_status_frame = tk.Frame(parent, bg='#e0f2fe', relief='solid', bd=1, padx=20, pady=15)
+        security_status_frame.pack(fill="x", pady=(20, 0))
+        
+        tk.Label(security_status_frame, text="🔒 Security Status", font=('Segoe UI', 12, 'bold'), 
+                bg='#e0f2fe', fg='#0277bd').pack(anchor="w", pady=(0, 10))
+        
+        security_content = tk.Frame(security_status_frame, bg='#e0f2fe')
+        security_content.pack(fill="x")
+        
+        tk.Label(security_content, text=f"• Admin User: {self.github_username}", 
+                font=('Segoe UI', 10), bg='#e0f2fe', fg='#01579b').pack(anchor="w")
+        tk.Label(security_content, text=f"• Organization Role: Admin/Owner", 
+                font=('Segoe UI', 10), bg='#e0f2fe', fg='#01579b').pack(anchor="w")
+        tk.Label(security_content, text=f"• Repository Access: Full Control", 
+                font=('Segoe UI', 10), bg='#e0f2fe', fg='#01579b').pack(anchor="w")
+    
+    def set_current_user(self, user_data):
+        """Set current user data for admin detection"""
+        self.current_user = user_data
+    
+    def _is_admin_user(self):
+        """Check if current user has admin privileges"""
+        if not hasattr(self, 'current_user') or not self.current_user:
+            return False
+        
+        # Check both database username and GitHub username
+        admin_users = ['vansilleza_fpi', 'van_silleza', 'admin', 'van0219']
+        current_username = self.current_user.get('username', '').lower()
+        
+        return current_username in [user.lower() for user in admin_users]
+    
+    def _share_test_group(self):
+        """Share a test group to community repository"""
+        try:
+            from github_test_groups_manager import GitHubTestGroupsManager
+            groups_manager = GitHubTestGroupsManager()
+            groups_manager.github_token = self.github_token
+            groups_manager.github_username = self.github_username
+            # Show placeholder for now
+            self.show_popup("Test Groups Sharing", "Select a test group from the Test Steps section to share with the community.", "info")
+        except ImportError:
+            self.show_popup("Feature Coming Soon", "Test Groups Sharing will be available in the next update!", "info")
+    
+    def _browse_community_groups(self):
+        """Browse community test groups"""
+        try:
+            from github_test_groups_manager import GitHubTestGroupsManager
+            groups_manager = GitHubTestGroupsManager()
+            groups_manager.github_token = self.github_token
+            groups_manager.github_username = self.github_username
+            self.show_popup("Community Browser", "Browse community test groups at:\nhttps://github.com/" + self.github_username + "/rice-test-groups", "info")
+        except ImportError:
+            self.show_popup("Feature Coming Soon", "Community browsing will be available in the next update!", "info")
+    
+    def _import_test_groups(self):
+        """Import test groups from community"""
+        try:
+            from github_test_groups_manager import GitHubTestGroupsManager
+            groups_manager = GitHubTestGroupsManager()
+            groups_manager.github_token = self.github_token
+            groups_manager.github_username = self.github_username
+            self.show_popup("Import Groups", "Download JSON files from the community repository and use the Import feature in Test Steps section.", "info")
+        except ImportError:
+            self.show_popup("Feature Coming Soon", "Test Groups Import will be available in the next update!", "info")
+    
+    def _validate_admin_access(self):
+        """Validate current admin access with GitHub organization"""
+        try:
+            if hasattr(self, 'org_security'):
+                is_admin, role, error = self.org_security.validate_admin_access(self.github_username)
+                if error:
+                    self.show_popup("Validation Error", f"Failed to validate access: {error}", "error")
+                elif is_admin:
+                    self.show_popup("Access Confirmed", f"Admin access confirmed!\n\nRole: {role.title()}\nOrganization: Infor-FSM", "success")
+                else:
+                    self.show_popup("Access Denied", f"Current role: {role}\n\nAdmin or Owner role required for full access.", "warning")
+            else:
+                self.show_popup("Validation Error", "Organization security module not available.", "error")
+        except Exception as e:
+            self.show_popup("Validation Error", f"Error validating access: {str(e)}", "error")
+
 if __name__ == "__main__":
-    print("GitHub Integration Manager for RICE Tester")
-    print("Secure access control - Only for authorized users")
-    print("Features: Repository creation, code upload, CI/CD setup, releases, file comparison & pull")
+    print("Unified GitHub Management System for RICE Tester")
+    print("Features: Application Distribution, Test Groups Sharing, Security Management")
+    print("Access Control: Admin (Full) vs User (Community only)")
