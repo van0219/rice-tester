@@ -48,10 +48,20 @@ def main():
         # If user successfully authenticated, launch main interface
         if user:
             root = tk.Tk()
+            # Start hidden to prevent size glitch
+            root.withdraw()
+            
             # Initialize app first
             app = SeleniumInboundTester(root, user)
-            # Maximize window after initialization (Windows-specific)
+            
+            # Ensure proper sizing before showing
+            root.update_idletasks()
+            
+            # Maximize window (Windows-specific)
             root.state('zoomed')
+            
+            # Show window after proper sizing
+            root.deiconify()
             
             # Remove auto-centering to allow proper dragging between monitors
             
