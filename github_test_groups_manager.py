@@ -54,18 +54,18 @@ class GitHubTestGroupsManager:
             conn = sqlite3.connect('fsm_tester.db')
             cursor = conn.cursor()
             
-            # Get test group info
-            cursor.execute("SELECT * FROM test_groups WHERE id = ?", (test_group_id,))
+            # Get test group info from test_step_groups table
+            cursor.execute("SELECT id, group_name, description FROM test_step_groups WHERE id = ?", (test_group_id,))
             group = cursor.fetchone()
             if not group:
                 return None
             
-            # Get test steps in group
+            # Get test steps in group from test_steps table
             cursor.execute("""
-                SELECT ts.* FROM test_steps ts 
-                JOIN test_group_steps tgs ON ts.id = tgs.test_step_id 
-                WHERE tgs.test_group_id = ?
-                ORDER BY tgs.step_order
+                SELECT id, name, step_type, target, description
+                FROM test_steps 
+                WHERE group_id = ?
+                ORDER BY COALESCE(step_order, id)
             """, (test_group_id,))
             steps = cursor.fetchall()
             
@@ -75,7 +75,7 @@ class GitHubTestGroupsManager:
             return {
                 'name': group[1],  # group_name
                 'description': group[2] or '',  # description
-                'category': group[3] or 'General',  # category
+                'category': 'General',  # default category
                 'created_date': datetime.now().isoformat(),
                 'shared_by': self.github_username,
                 'steps': [self.format_step_data(step) for step in steps],
@@ -91,13 +91,13 @@ class GitHubTestGroupsManager:
     
     def format_step_data(self, step):
         """Format step data for JSON export"""
+        # step format: (id, name, step_type, target, description)
         return {
-            'step_name': step[1],
-            'step_type': step[2],
-            'selector_type': step[3] or '',
-            'selector_value': step[4] or '',
-            'input_value': step[5] or '',
-            'description': step[6] or ''
+            'step_name': step[1] or 'Unnamed Step',
+            'step_type': step[2] or 'Unknown',
+            'target': step[3] or '',
+            'description': step[4] or '',
+            'step_order': step[0]  # Use ID as order for now
         }
     
     def show_sharing_dialog(self, test_group_data):
