@@ -54,11 +54,7 @@ class TestStepsManager:
                                command=self._load_test_groups)
         refresh_btn.pack(side="left", padx=(0, 8))
         
-        share_btn = tk.Button(header_btn_frame, text="🌐 Share", 
-                             font=('Segoe UI', 9, 'bold'), bg='#3b82f6', fg='#ffffff', 
-                             relief='flat', padx=12, pady=6, cursor='hand2', bd=0,
-                             command=self._show_share_menu)
-        share_btn.pack(side="left")
+        # Removed global Share button - individual Share buttons added to each row
         
         # Table container
         table_container = tk.Frame(card_frame, bg='#ffffff')
@@ -69,23 +65,27 @@ class TestStepsManager:
         headers_frame.pack(fill="x")
         headers_frame.pack_propagate(False)
         
-        # Column headers with optimized widths
+        # Column headers with optimized widths (added Share column)
         tk.Label(headers_frame, text="📁 Group Name", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0, y=8, relwidth=0.3, x=18)
+                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0, y=8, relwidth=0.25, x=18)
         
         tk.Label(headers_frame, text="📝 Description", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.3, y=8, relwidth=0.4, x=18)
+                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.25, y=8, relwidth=0.35, x=18)
         
         tk.Label(headers_frame, text="🔢 Steps", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.7, y=8, relwidth=0.1, x=18)
+                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.6, y=8, relwidth=0.08, x=18)
+        
+        tk.Label(headers_frame, text="🌐 Share", font=('Segoe UI', 10, 'bold'), 
+                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.68, y=8, relwidth=0.08, x=18)
         
         tk.Label(headers_frame, text="⚙️ Actions", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.8, y=8, relwidth=0.2, x=18)
+                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.76, y=8, relwidth=0.24, x=18)
         
         # Column separators
-        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.3, y=4, height=27)
-        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.7, y=4, height=27)
-        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.8, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.25, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.6, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.68, y=4, height=27)
+        tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=0.76, y=4, height=27)
         
         # Scrollable table frame
         self.groups_scroll_frame = tk.Frame(table_container, bg='#ffffff')
@@ -141,7 +141,7 @@ class TestStepsManager:
             # Group name
             name_label = tk.Label(row_frame, text=group_name, font=('Segoe UI', 10), 
                                  bg=bg_color, fg='#1f2937', anchor='w')
-            name_label.place(relx=0, y=8, relwidth=0.3, x=18)
+            name_label.place(relx=0, y=8, relwidth=0.25, x=18)
             name_label.bind('<Enter>', on_row_enter)
             name_label.bind('<Leave>', on_row_leave)
             
@@ -149,92 +149,194 @@ class TestStepsManager:
             desc_text = description or '(no description)'
             desc_label = tk.Label(row_frame, text=desc_text, font=('Segoe UI', 10), 
                                  bg=bg_color, fg='#6b7280' if not description else '#1f2937', anchor='w')
-            desc_label.place(relx=0.3, y=8, relwidth=0.4, x=18)
+            desc_label.place(relx=0.25, y=8, relwidth=0.35, x=18)
             desc_label.bind('<Enter>', on_row_enter)
             desc_label.bind('<Leave>', on_row_leave)
             
             # Step count
             count_label = tk.Label(row_frame, text=str(step_count), font=('Segoe UI', 10), 
                                   bg=bg_color, fg='#1f2937', anchor='w')
-            count_label.place(relx=0.7, y=8, relwidth=0.1, x=18)
+            count_label.place(relx=0.6, y=8, relwidth=0.08, x=18)
             count_label.bind('<Enter>', on_row_enter)
             count_label.bind('<Leave>', on_row_leave)
             
+            # Share button (individual per row)
+            share_frame = tk.Frame(row_frame, bg=bg_color)
+            share_frame.place(relx=0.68, y=2, relwidth=0.08, height=31)
+            
+            share_btn = tk.Button(share_frame, text="🌐", font=('Segoe UI', 8), 
+                                 bg='#3b82f6', fg='#ffffff', relief='flat', 
+                                 padx=2, pady=1, cursor='hand2', bd=0,
+                                 command=lambda gid=group_id: self._share_test_group_direct(gid))
+            share_btn.place(relx=0.1, rely=0.1, relwidth=0.8, relheight=0.8)
+            
             # Column separators
-            tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=0.3, y=2, height=31)
-            tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=0.7, y=2, height=31)
-            tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=0.8, y=2, height=31)
+            tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=0.25, y=2, height=31)
+            tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=0.6, y=2, height=31)
+            tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=0.68, y=2, height=31)
+            tk.Frame(row_frame, bg='#d1d5db', width=1).place(relx=0.76, y=2, height=31)
             
-            # Actions column with proper positioning (20% width)
+            # Actions column with proper positioning (24% width)
             actions_frame = tk.Frame(row_frame, bg=bg_color)
-            actions_frame.place(relx=0.8, y=2, relwidth=0.2, height=31)
+            actions_frame.place(relx=0.76, y=2, relwidth=0.24, height=31)
             
-            # Action buttons with Unicode symbols
-            view_btn = tk.Button(actions_frame, text="👁️ View", font=('Segoe UI', 8, 'bold'), 
+            # Action buttons without icons (adjusted for new width)
+            view_btn = tk.Button(actions_frame, text="View", font=('Segoe UI', 8, 'bold'), 
                                bg='#10b981', fg='#ffffff', relief='flat', 
                                padx=4, pady=1, cursor='hand2', bd=0,
                                command=lambda gid=group_id: self._view_group_steps(gid))
-            view_btn.place(relx=0.02, rely=0.1, relwidth=0.32, relheight=0.8)
+            view_btn.place(relx=0.02, rely=0.1, relwidth=0.31, relheight=0.8)
             
-            edit_btn = tk.Button(actions_frame, text="✏️ Edit", font=('Segoe UI', 8, 'bold'), 
+            edit_btn = tk.Button(actions_frame, text="Edit", font=('Segoe UI', 8, 'bold'), 
                                bg='#3b82f6', fg='#ffffff', relief='flat', 
                                padx=4, pady=1, cursor='hand2', bd=0,
                                command=lambda gid=group_id: self._edit_group(gid))
-            edit_btn.place(relx=0.36, rely=0.1, relwidth=0.32, relheight=0.8)
+            edit_btn.place(relx=0.35, rely=0.1, relwidth=0.31, relheight=0.8)
             
-            delete_btn = tk.Button(actions_frame, text="× Delete", font=('Segoe UI', 8, 'bold'), 
+            delete_btn = tk.Button(actions_frame, text="Delete", font=('Segoe UI', 8, 'bold'), 
                                  bg='#ef4444', fg='#ffffff', relief='flat', 
                                  padx=4, pady=1, cursor='hand2', bd=0,
                                  command=lambda gid=group_id: self._delete_group(gid))
-            delete_btn.place(relx=0.70, rely=0.1, relwidth=0.28, relheight=0.8)
+            delete_btn.place(relx=0.68, rely=0.1, relwidth=0.30, relheight=0.8)
     
     def _add_test_group(self):
-        """Add test group dialog"""
+        """Add test group dialog with modern UI/UX standards"""
         popup = tk.Toplevel(self.root)
         popup.title("Add Test Group")
-        center_dialog(popup, 400, 250)
-        popup.configure(bg='#ffffff')
+        center_dialog(popup, 500, 434)
+        popup.configure(bg='#f8fafc')
+        popup.transient(self.root)
+        popup.grab_set()
         
         try:
             popup.iconbitmap("infor_logo.ico")
         except:
             pass
         
-        frame = tk.Frame(popup, bg='#ffffff', padx=20, pady=20)
-        frame.pack(fill="both", expand=True)
+        # Modern card container
+        card_frame = tk.Frame(popup, bg='#ffffff', relief='solid', bd=1,
+                             highlightbackground='#e5e7eb', highlightthickness=1)
+        card_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        tk.Label(frame, text="Group Name:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 5))
-        name_entry = tk.Entry(frame, width=40, font=('Segoe UI', 10))
-        name_entry.pack(fill="x", pady=(0, 10))
+        # Header with icon and title
+        header_frame = tk.Frame(card_frame, bg='#10b981', height=60)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
         
-        tk.Label(frame, text="Description:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 5))
-        desc_entry = tk.Entry(frame, width=40, font=('Segoe UI', 10))
-        desc_entry.pack(fill="x", pady=(0, 20))
+        tk.Label(header_frame, text="📋 Add Test Group", 
+                font=('Segoe UI', 14, 'bold'), bg='#10b981', fg='#ffffff').pack(expand=True)
         
-        btn_frame = tk.Frame(frame, bg='#ffffff')
-        btn_frame.pack()
+        # Content with better spacing
+        content_frame = tk.Frame(card_frame, bg='#ffffff', padx=25, pady=25)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Group Name field with enhanced styling
+        name_label = tk.Label(content_frame, text="📁 Group Name *", 
+                             font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#374151')
+        name_label.pack(anchor="w", pady=(0, 5))
+        
+        name_entry = tk.Entry(content_frame, font=('Segoe UI', 11), 
+                             bg='#f9fafb', relief='solid', bd=1, 
+                             highlightthickness=2, highlightcolor='#10b981',
+                             highlightbackground='#e5e7eb')
+        name_entry.pack(fill="x", pady=(0, 15), ipady=8)
+        
+        # Description field with enhanced styling
+        desc_label = tk.Label(content_frame, text="📝 Description (Optional)", 
+                             font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#374151')
+        desc_label.pack(anchor="w", pady=(0, 5))
+        
+        desc_entry = tk.Entry(content_frame, font=('Segoe UI', 11), 
+                             bg='#f9fafb', relief='solid', bd=1, 
+                             highlightthickness=2, highlightcolor='#10b981',
+                             highlightbackground='#e5e7eb')
+        desc_entry.pack(fill="x", pady=(0, 20), ipady=8)
+        
+        # Helpful tip section
+        tip_frame = tk.Frame(content_frame, bg='#f0f9ff', relief='solid', bd=1)
+        tip_frame.pack(fill="x", pady=(0, 20))
+        
+        tip_content = tk.Frame(tip_frame, bg='#f0f9ff')
+        tip_content.pack(fill="x", padx=15, pady=10)
+        
+        tk.Label(tip_content, text="💡 Tip:", font=('Segoe UI', 9, 'bold'), 
+                bg='#f0f9ff', fg='#0369a1').pack(side="left")
+        tk.Label(tip_content, text="Group names help organize your test steps (e.g., 'Login Steps', 'Payment Flow')", 
+                font=('Segoe UI', 9), bg='#f0f9ff', fg='#0c4a6e', wraplength=380).pack(side="left", padx=(5, 0))
+        
+        # Button frame with better styling
+        btn_frame = tk.Frame(content_frame, bg='#ffffff')
+        btn_frame.pack(fill="x")
+        
+        # Real-time validation
+        def validate_name(event=None):
+            name = name_entry.get().strip()
+            if name:
+                name_entry.configure(highlightcolor='#10b981', highlightbackground='#d1fae5')
+                save_btn.configure(state='normal', bg='#10b981')
+            else:
+                name_entry.configure(highlightcolor='#ef4444', highlightbackground='#fecaca')
+                save_btn.configure(state='disabled', bg='#9ca3af')
+        
+        name_entry.bind('<KeyRelease>', validate_name)
         
         def save_group():
             name = name_entry.get().strip()
             desc = desc_entry.get().strip()
+            
             if not name:
-                self.show_popup("Error", "Please enter a group name", "error")
+                self.show_popup("Validation Error", "Please enter a group name", "error")
+                name_entry.focus()
                 return
             
             try:
                 self.db_manager.save_test_step_group(name, desc)
                 popup.destroy()
                 self._load_test_groups()
-                self.show_popup("Success", f"Group '{name}' created successfully!", "success")
+                self.show_popup("Success", f"Test group '{name}' created successfully!", "success")
             except Exception as e:
                 self.show_popup("Error", f"Failed to create group: {str(e)}", "error")
         
-        tk.Button(btn_frame, text="Save", font=('Segoe UI', 10, 'bold'), bg='#10b981', fg='#ffffff', 
-                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0, command=save_group).pack(side="left", padx=(0, 10))
-        tk.Button(btn_frame, text="Cancel", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack(side="left")
+        # Enhanced buttons with hover effects
+        save_btn = tk.Button(btn_frame, text="💾 Create Group", 
+                            font=('Segoe UI', 10, 'bold'), bg='#9ca3af', fg='#ffffff', 
+                            relief='flat', padx=20, pady=10, cursor='hand2', bd=0, 
+                            state='disabled', command=save_group)
+        save_btn.pack(side="right", padx=(10, 0))
         
+        cancel_btn = tk.Button(btn_frame, text="✕ Cancel", 
+                              font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
+                              relief='flat', padx=20, pady=10, cursor='hand2', bd=0, 
+                              command=popup.destroy)
+        cancel_btn.pack(side="right")
+        
+        # Hover effects
+        def on_save_hover(e):
+            if save_btn['state'] == 'normal':
+                save_btn.configure(bg='#059669')
+        def on_save_leave(e):
+            if save_btn['state'] == 'normal':
+                save_btn.configure(bg='#10b981')
+        def on_cancel_hover(e):
+            cancel_btn.configure(bg='#4b5563')
+        def on_cancel_leave(e):
+            cancel_btn.configure(bg='#6b7280')
+        
+        save_btn.bind('<Enter>', on_save_hover)
+        save_btn.bind('<Leave>', on_save_leave)
+        cancel_btn.bind('<Enter>', on_cancel_hover)
+        cancel_btn.bind('<Leave>', on_cancel_leave)
+        
+        # Focus and keyboard shortcuts
         name_entry.focus()
+        
+        # Enter key to save (when name is filled)
+        def on_enter(event):
+            if name_entry.get().strip():
+                save_group()
+        
+        popup.bind('<Return>', on_enter)
+        popup.bind('<Escape>', lambda e: popup.destroy())
     
     def _view_group_steps(self, group_id):
         """View steps in group with Add/Edit/Delete functionality"""
@@ -290,218 +392,189 @@ class TestStepsManager:
                  bg='#8b5cf6', fg='#ffffff', relief='flat', padx=10, pady=6, 
                  cursor='hand2', bd=0, command=lambda: self._show_template_library_for_group(group_id, popup)).pack(side='right', padx=(0, 8))
         
+        def debug_add_step():
+            print(f"\nDEBUG: Add Step button clicked for group_id={group_id}")
+            self._add_test_step(group_id, popup)
+        
         tk.Button(actions_frame, text="＋ Add Step", font=('Segoe UI', 9, 'bold'), 
                  bg='#059669', fg='#ffffff', relief='flat', padx=12, pady=6, 
-                 cursor='hand2', bd=0, command=lambda: self._add_test_step(group_id, popup)).pack(side='right', padx=(0, 8))
+                 cursor='hand2', bd=0, command=debug_add_step).pack(side='right', padx=(0, 8))
         
         # Steps container
         steps_container = tk.Frame(frame, bg='#ffffff')
         steps_container.pack(fill='both', expand=True, pady=(0, 10))
         
-        # Headers with optimized column distribution (like our table improvements)
-        headers_frame = tk.Frame(steps_container, bg='#d1d5db', height=35)
-        headers_frame.pack(fill='x')
-        headers_frame.pack_propagate(False)
+
         
-        # Optimized column widths based on content importance
-        tk.Label(headers_frame, text="⋮⋮", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='center').place(relx=0, y=8, relwidth=0.04, x=8)
-        tk.Label(headers_frame, text="📝 Step Name", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.04, y=8, relwidth=0.26, x=12)
-        tk.Label(headers_frame, text="🔧 Type", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.3, y=8, relwidth=0.12, x=12)
-        tk.Label(headers_frame, text="👆 Click", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.42, y=8, relwidth=0.08, x=12)
-        tk.Label(headers_frame, text="🎯 Selector", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.5, y=8, relwidth=0.12, x=12)
-        tk.Label(headers_frame, text="💬 Value", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.62, y=8, relwidth=0.19, x=12)
-        tk.Label(headers_frame, text="⚙️ Actions", font=('Segoe UI', 10, 'bold'), 
-                bg='#d1d5db', fg='#374151', anchor='w').place(relx=0.81, y=8, relwidth=0.19, x=12)
+        # Create simple table using Treeview (reliable approach)
+        columns = ('Order', 'Name', 'Type', 'Click', 'Selector', 'Value')
+        self.steps_tree = ttk.Treeview(steps_container, columns=columns, show='headings', height=15)
         
-        # Column separators for better visual organization
-        for relx in [0.04, 0.3, 0.42, 0.5, 0.62, 0.81]:
-            tk.Frame(headers_frame, bg='#9ca3af', width=1).place(relx=relx, y=4, height=27)
+        # Configure column headings and widths
+        self.steps_tree.heading('Order', text='⋮⋮')
+        self.steps_tree.heading('Name', text='📝 Step Name')
+        self.steps_tree.heading('Type', text='🔧 Type')
+        self.steps_tree.heading('Click', text='👆 Click')
+        self.steps_tree.heading('Selector', text='🎯 Selector')
+        self.steps_tree.heading('Value', text='💬 Value')
         
-        # Steps scroll frame
-        self.steps_scroll_frame = tk.Frame(steps_container, bg='#ffffff')
-        self.steps_scroll_frame.pack(fill='both', expand=True)
+        self.steps_tree.column('Order', width=50, anchor='center')
+        self.steps_tree.column('Name', width=200, anchor='w')
+        self.steps_tree.column('Type', width=100, anchor='w')
+        self.steps_tree.column('Click', width=80, anchor='w')
+        self.steps_tree.column('Selector', width=100, anchor='w')
+        self.steps_tree.column('Value', width=200, anchor='w')
+        
+        # Add scrollbar for table
+        steps_scrollbar = ttk.Scrollbar(steps_container, orient='vertical', command=self.steps_tree.yview)
+        self.steps_tree.configure(yscrollcommand=steps_scrollbar.set)
+        
+        # Pack tree and scrollbar
+        self.steps_tree.pack(side='left', fill='both', expand=True)
+        steps_scrollbar.pack(side='right', fill='y')
+        
+        # Add usage tip below the table
+        tip_frame = tk.Frame(frame, bg='#f0f9ff', relief='solid', bd=1, height=45)
+        tip_frame.pack(fill='x', pady=(5, 0))
+        tip_frame.pack_propagate(False)
+        
+        tip_content = tk.Frame(tip_frame, bg='#f0f9ff')
+        tip_content.pack(expand=True, fill='both', padx=15, pady=8)
+        
+        tk.Label(tip_content, text="💡 Tip:", font=('Segoe UI', 9, 'bold'), 
+                bg='#f0f9ff', fg='#0369a1').pack(side='left')
+        tk.Label(tip_content, text="Double-click any step to edit • Right-click for more options (Edit, Duplicate, Delete)", 
+                font=('Segoe UI', 9), bg='#f0f9ff', fg='#0c4a6e').pack(side='left', padx=(5, 0))
+        
+        # Add usage tip below the table
+        tip_frame = tk.Frame(steps_container, bg='#f0f9ff', relief='solid', bd=1, height=45)
+        tip_frame.pack(fill='x', pady=(5, 0))
+        tip_frame.pack_propagate(False)
+        
+        tip_content = tk.Frame(tip_frame, bg='#f0f9ff')
+        tip_content.pack(expand=True, fill='both', padx=15, pady=8)
+        
+        tk.Label(tip_content, text="💡 Tip:", font=('Segoe UI', 9, 'bold'), 
+                bg='#f0f9ff', fg='#0369a1').pack(side='left')
+        tk.Label(tip_content, text="Double-click any step to edit • Right-click for more options (Edit, Duplicate, Delete)", 
+                font=('Segoe UI', 9), bg='#f0f9ff', fg='#0c4a6e').pack(side='left', padx=(5, 0))
         
         # Store group_id for refresh and reset pagination
         self.current_group_id = group_id
         self.current_steps_page = 1
         self.steps_popup = popup
         
-        # Records per page selector at bottom
-        records_frame = tk.Frame(frame, bg='#ffffff')
-        records_frame.pack(fill='x', pady=(10, 0))
-        
-        tk.Label(records_frame, text="Records per page:", font=('Segoe UI', 9), bg='#ffffff').pack(side='left', padx=(0, 5))
-        
-        records_var = tk.StringVar(value=str(self.steps_per_page))
-        records_combo = ttk.Combobox(records_frame, textvariable=records_var, width=5, font=('Segoe UI', 9), state='readonly')
-        records_combo['values'] = ['5', '10', '20', '50', '100']
-        records_combo.pack(side='left')
-        
-        def change_records_per_page(*args):
-            self.steps_per_page = int(records_var.get())
-            self.current_steps_page = 1
-            self._load_group_steps(group_id)
-        
-        records_combo.bind('<<ComboboxSelected>>', change_records_per_page)
+
         
         # Prevent form from minimizing
         popup.transient(self.root)
         popup.grab_set()
         
         self._load_group_steps(group_id)
-        
-        # Close button
-        tk.Button(frame, text="Close", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack(pady=(10, 0))
     
     def _load_group_steps(self, group_id):
-        """Load steps for a specific group with pagination"""
-        # Clear existing steps
-        for widget in self.steps_scroll_frame.winfo_children():
-            widget.destroy()
+        """Load steps for a specific group using reliable table approach"""
+        # Clear existing items in tree
+        if hasattr(self, 'steps_tree'):
+            for item in self.steps_tree.get_children():
+                self.steps_tree.delete(item)
         
         # Get all steps
         all_steps = self.db_manager.get_test_steps_by_group(group_id)
         
-        # Pagination setup
-        if not hasattr(self, 'current_steps_page'):
-            self.current_steps_page = 1
-        if not hasattr(self, 'steps_per_page'):
-            self.steps_per_page = 10
+        # Store group_id for other operations
+        self.current_group_id = group_id
         
-        steps_per_page = self.steps_per_page
-        total_steps = len(all_steps)
-        total_pages = max(1, (total_steps + steps_per_page - 1) // steps_per_page)
+        # Populate table with steps data
+        if all_steps:
+            for i, step in enumerate(all_steps):
+                step_id, name, step_type, target, description = step
+                
+                # Parse step data for display
+                click_type, selector_type, value = self._parse_step_data(step_type, target, description)
+                
+                # Format display values
+                display_name = name or 'Unnamed Step'
+                display_type = step_type or 'Unknown'
+                display_click = click_type or '-'
+                display_selector = selector_type or '-'
+                display_value = value or '-'
+                
+                # Truncate long values for table display
+                if len(display_name) > 30:
+                    display_name = display_name[:27] + "..."
+                if len(display_value) > 35:
+                    display_value = display_value[:32] + "..."
+                
+                # Insert row into table with step_id as tag
+                item_id = self.steps_tree.insert('', 'end', values=(
+                    str(i + 1),  # Order
+                    display_name,
+                    display_type,
+                    display_click,
+                    display_selector,
+                    display_value
+                ), tags=(str(step_id),))
+        else:
+            # Show empty state message
+            self.steps_tree.insert('', 'end', values=(
+                '',
+                'No steps found in this group',
+                '',
+                '',
+                '',
+                'Add steps using the "+ Add Step" button'
+            ))
         
-        # Ensure current page is valid
-        if self.current_steps_page > total_pages:
-            self.current_steps_page = total_pages
+        # Bind double-click to edit
+        def on_double_click(event):
+            selection = self.steps_tree.selection()
+            if selection:
+                item = selection[0]
+                tags = self.steps_tree.item(item, 'tags')
+                if tags and tags[0].isdigit():
+                    step_id = int(tags[0])
+                    print(f"\nDEBUG: Double-click detected on step_id={step_id}")
+                    self._edit_test_step(step_id)
         
-        # Get steps for current page
-        start_index = (self.current_steps_page - 1) * steps_per_page
-        end_index = min(start_index + steps_per_page, total_steps)
-        page_steps = all_steps[start_index:end_index]
+        self.steps_tree.bind('<Double-1>', on_double_click)
         
-        # Display steps
-        for i, step in enumerate(page_steps):
-            step_id, name, step_type, target, description = step
-            bg_color = '#ffffff' if i % 2 == 0 else '#f9fafb'
-            
-            row_frame = tk.Frame(self.steps_scroll_frame, bg=bg_color, height=30)
-            row_frame.pack(fill='x', pady=1)
-            row_frame.pack_propagate(False)
-            
-            # Parse step data for display
-            click_type, selector_type, value = self._parse_step_data(step_type, target, description)
-            
-            # Drag handle with improved positioning
-            drag_label = tk.Label(row_frame, text="⋮⋮", font=('Segoe UI', 10), 
-                                bg=bg_color, fg='#6b7280', cursor='hand2', anchor='center')
-            drag_label.place(relx=0, y=8, relwidth=0.04, x=8)
-            
-            # Bind drag events to the drag handle and row
-            self._bind_drag_events(row_frame, step_id, i)
-            
-            # Step name (wider for better readability)
-            name_display = name[:35] + "..." if name and len(name) > 35 else name or ""
-            name_label = tk.Label(row_frame, text=name_display, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w')
-            name_label.place(relx=0.04, y=8, relwidth=0.26, x=12)
-            self._add_tooltip(name_label, name)
-            
-            # Step type with better spacing
-            type_label = tk.Label(row_frame, text=step_type, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w')
-            type_label.place(relx=0.3, y=8, relwidth=0.12, x=12)
-            self._add_tooltip(type_label, step_type)
-            
-            # Click type (compact)
-            click_label = tk.Label(row_frame, text=click_type, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w')
-            click_label.place(relx=0.42, y=8, relwidth=0.08, x=12)
-            if click_type:
-                self._add_tooltip(click_label, f"{click_type} Click")
-            
-            # Selector type (compact)
-            selector_label = tk.Label(row_frame, text=selector_type, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w')
-            selector_label.place(relx=0.5, y=8, relwidth=0.12, x=12)
-            self._add_tooltip(selector_label, selector_type)
-            
-            # Value (more space for better visibility)
-            value_display = value[:25] + "..." if value and len(value) > 25 else value or ""
-            value_label = tk.Label(row_frame, text=value_display, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w')
-            value_label.place(relx=0.62, y=8, relwidth=0.19, x=12)
-            if value:
-                self._add_tooltip(value_label, value)
-            
-            # Actions with optimized positioning (like our Actions column fixes)
-            actions_frame = tk.Frame(row_frame, bg=bg_color)
-            actions_frame.place(relx=0.81, y=4, relwidth=0.19, height=22)
-            
-            # Action buttons with consistent icon + text pattern (matching SFTP table standard)
-            tk.Button(actions_frame, text="✏ Edit", font=('Segoe UI', 8, 'bold'), 
-                     bg='#3b82f6', fg='#ffffff', relief='flat', padx=2, pady=1, 
-                     cursor='hand2', bd=0, command=lambda sid=step_id: self._edit_test_step(sid)).place(relx=0.02, rely=0.1, relwidth=0.30, relheight=0.8)
-            
-            tk.Button(actions_frame, text="📋 Dup", font=('Segoe UI', 8, 'bold'), 
-                     bg='#8b5cf6', fg='#ffffff', relief='flat', padx=2, pady=1, 
-                     cursor='hand2', bd=0, command=lambda sid=step_id: self._duplicate_test_step(sid)).place(relx=0.34, rely=0.1, relwidth=0.30, relheight=0.8)
-            
-            tk.Button(actions_frame, text="× Del", font=('Segoe UI', 8, 'bold'), 
-                     bg='#ef4444', fg='#ffffff', relief='flat', padx=2, pady=1, 
-                     cursor='hand2', bd=0, command=lambda sid=step_id: self._delete_test_step(sid)).place(relx=0.66, rely=0.1, relwidth=0.32, relheight=0.8)
+        # Add right-click context menu
+        def show_context_menu(event):
+            selection = self.steps_tree.selection()
+            if selection:
+                item = selection[0]
+                tags = self.steps_tree.item(item, 'tags')
+                if tags and tags[0].isdigit():
+                    step_id = int(tags[0])
+                    context_menu = tk.Menu(self.root, tearoff=0)
+                    def debug_edit_step():
+                        print(f"\nDEBUG: Context menu Edit clicked for step_id={step_id}")
+                        self._edit_test_step(step_id)
+                    
+                    context_menu.add_command(label="✏️ Edit Step", command=debug_edit_step)
+                    def debug_duplicate_step():
+                        print(f"\nDEBUG: Context menu Duplicate clicked for step_id={step_id}")
+                        self._duplicate_test_step(step_id)
+                    
+                    context_menu.add_command(label="📋 Duplicate Step", command=debug_duplicate_step)
+                    context_menu.add_separator()
+                    def debug_delete_step():
+                        print(f"\nDEBUG: Context menu Delete clicked for step_id={step_id}")
+                        self._delete_test_step(step_id)
+                    
+                    context_menu.add_command(label="🗑️ Delete Step", command=debug_delete_step)
+                    
+                    try:
+                        context_menu.tk_popup(event.x_root, event.y_root)
+                    finally:
+                        context_menu.grab_release()
         
-        # Add pagination controls if needed
-        if total_pages > 1:
-            self._add_steps_pagination(total_pages, total_steps)
+        self.steps_tree.bind('<Button-3>', show_context_menu)
     
-    def _add_steps_pagination(self, total_pages, total_steps):
-        """Add pagination controls for test steps"""
-        pagination_frame = tk.Frame(self.steps_scroll_frame, bg='#ffffff', height=35)
-        pagination_frame.pack(fill='x', pady=(10, 0))
-        pagination_frame.pack_propagate(False)
-        
-        # Previous button
-        prev_btn = tk.Button(pagination_frame, text="◀ Previous", font=('Segoe UI', 8), 
-                            bg='#6b7280' if self.current_steps_page > 1 else '#d1d5db', 
-                            fg='#ffffff', relief='flat', padx=8, pady=4, cursor='hand2', bd=0,
-                            state='normal' if self.current_steps_page > 1 else 'disabled',
-                            command=self._prev_steps_page)
-        prev_btn.pack(side='left', padx=(0, 5))
-        
-        # Page info (no dropdown)
-        page_frame = tk.Frame(pagination_frame, bg='#ffffff')
-        page_frame.pack(side='left', padx=10)
-        
-        tk.Label(page_frame, text=f"Page {self.current_steps_page} of {total_pages} ({total_steps} steps)", 
-                font=('Segoe UI', 8), bg='#ffffff', fg='#374151').pack(side='left')
-        
-        # Next button
-        next_btn = tk.Button(pagination_frame, text="Next ▶", font=('Segoe UI', 8), 
-                            bg='#6b7280' if self.current_steps_page < total_pages else '#d1d5db', 
-                            fg='#ffffff', relief='flat', padx=8, pady=4, cursor='hand2', bd=0,
-                            state='normal' if self.current_steps_page < total_pages else 'disabled',
-                            command=self._next_steps_page)
-        next_btn.pack(side='left', padx=(5, 0))
+
     
-    def _prev_steps_page(self):
-        """Go to previous page of test steps"""
-        if self.current_steps_page > 1:
-            self.current_steps_page -= 1
-            self._load_group_steps(self.current_group_id)
-    
-    def _next_steps_page(self):
-        """Go to next page of test steps"""
-        self.current_steps_page += 1
-        self._load_group_steps(self.current_group_id)
+
     
     def _bind_drag_events(self, row_frame, step_id, index):
         """Bind drag and drop events to drag handle only"""
@@ -597,34 +670,22 @@ class TestStepsManager:
     
     def _add_test_step(self, group_id, parent_popup):
         """Enhanced add test step with Phase 3 improvements"""
-        try:
-            # Try Phase 3 enhanced version first
-            from test_steps_methods_enhanced import TestStepsMethods
-            methods = TestStepsMethods()
-            methods.db_manager = self.db_manager
-            methods.show_popup = self.show_popup
-            methods._load_group_steps = self._load_group_steps
-            
-            methods._add_test_step(group_id, parent_popup)
-        except ImportError:
-            # Fallback to original version
-            from test_steps_methods import TestStepsMethods
-            methods = TestStepsMethods()
-            methods.db_manager = self.db_manager
-            methods.show_popup = self.show_popup
-            methods._load_group_steps = self._load_group_steps
-            
-            # Add selenium manager reference for step preview
-            try:
-                from selenium_manager import SeleniumManager
-                methods.selenium_manager = SeleniumManager()
-            except:
-                methods.selenium_manager = None
-                
-            methods._add_test_step(group_id, parent_popup)
+        print(f"\nDEBUG: _add_test_step called with group_id={group_id}")
+        # Use original version with debug code
+        print(f"DEBUG: Using original test steps methods with debug")
+        from test_steps_methods import TestStepsMethods
+        methods = TestStepsMethods()
+        methods.db_manager = self.db_manager
+        methods.show_popup = self.show_popup
+        methods._load_group_steps = self._load_group_steps
+        
+        print(f"DEBUG: About to call methods._add_test_step()")
+        methods._add_test_step(group_id, parent_popup)
+        print(f"DEBUG: Finished calling methods._add_test_step()")
     
     def _edit_test_step(self, step_id):
         """Enhanced edit test step with Phase 3 improvements"""
+        print(f"\nDEBUG: _edit_test_step called with step_id={step_id}")
         cursor = self.db_manager.conn.cursor()
         cursor.execute("SELECT name, step_type, target, description FROM test_steps WHERE id = ? AND user_id = ?", 
                       (step_id, self.db_manager.user_id))
@@ -634,31 +695,17 @@ class TestStepsManager:
             self.show_popup("Error", "Test step not found", "error")
             return
         
-        try:
-            # Try Phase 3 enhanced version first
-            from test_steps_methods_enhanced import TestStepsMethods
-            methods = TestStepsMethods()
-            methods.db_manager = self.db_manager
-            methods.show_popup = self.show_popup
-            methods._load_group_steps = self._load_group_steps
-            
-            methods._edit_test_step(step_id, self.current_group_id, self.steps_popup)
-        except ImportError:
-            # Fallback to original version
-            from test_steps_methods import TestStepsMethods
-            methods = TestStepsMethods()
-            methods.db_manager = self.db_manager
-            methods.show_popup = self.show_popup
-            methods._load_group_steps = self._load_group_steps
-            
-            # Add selenium manager reference for enhanced element finding
-            try:
-                from selenium_manager import SeleniumManager
-                methods.selenium_manager = SeleniumManager()
-            except:
-                methods.selenium_manager = None
-                
-            methods._edit_test_step(step_id, self.current_group_id, self.steps_popup)
+        # Use original version with debug code
+        print(f"DEBUG: Using original test steps methods for edit with debug")
+        from test_steps_methods import TestStepsMethods
+        methods = TestStepsMethods()
+        methods.db_manager = self.db_manager
+        methods.show_popup = self.show_popup
+        methods._load_group_steps = self._load_group_steps
+        
+        print(f"DEBUG: About to call methods._edit_test_step()")
+        methods._edit_test_step(step_id, self.current_group_id, self.steps_popup)
+        print(f"DEBUG: Finished calling methods._edit_test_step()")
     
     def _delete_test_step(self, step_id):
         """Delete test step with confirmation using consistent modal style"""
@@ -1055,84 +1102,12 @@ class TestStepsManager:
         except Exception as e:
             self.show_popup("Bulk Operations", f"⚡ Bulk Operations\n\nFeatures:\n• Multi-step selection\n• Batch editing\n• Bulk duplication\n• Mass deletion\n• Step reordering", "info")
     
-    def _show_share_menu(self):
-        """Show share menu for test groups"""
-        groups = self.db_manager.get_test_step_groups()
-        
-        if not groups:
-            self.show_popup("No Groups", "No test groups available to share. Create a test group first.", "info")
-            return
-        
-        # Create share menu popup
-        popup = tk.Toplevel(self.root)
-        popup.title("🌐 Share Test Groups")
-        center_dialog(popup, 500, 400)
-        popup.configure(bg='#ffffff')
-        popup.transient(self.root)
-        popup.grab_set()
-        
-        try:
-            popup.iconbitmap("infor_logo.ico")
-        except:
-            pass
-        
-        # Header
-        header_frame = tk.Frame(popup, bg='#3b82f6', height=50)
-        header_frame.pack(fill='x')
-        header_frame.pack_propagate(False)
-        
-        tk.Label(header_frame, text="🌐 Share with Community", 
-                font=('Segoe UI', 12, 'bold'), bg='#3b82f6', fg='#ffffff').pack(expand=True)
-        
-        # Content
-        content_frame = tk.Frame(popup, bg='#ffffff', padx=20, pady=20)
-        content_frame.pack(fill='both', expand=True)
-        
-        tk.Label(content_frame, text="Select a test group to share:", 
-                font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor='w', pady=(0, 10))
-        
-        # Groups list
-        groups_frame = tk.Frame(content_frame, bg='#f8fafc', relief='solid', bd=1)
-        groups_frame.pack(fill='both', expand=True, pady=(0, 15))
-        
-        for group in groups:
-            group_id, group_name, description, step_count = group
-            
-            group_row = tk.Frame(groups_frame, bg='#ffffff', relief='solid', bd=1)
-            group_row.pack(fill='x', padx=5, pady=2)
-            
-            # Group info
-            info_frame = tk.Frame(group_row, bg='#ffffff')
-            info_frame.pack(side='left', fill='both', expand=True, padx=10, pady=8)
-            
-            tk.Label(info_frame, text=group_name, font=('Segoe UI', 10, 'bold'), 
-                    bg='#ffffff', fg='#1f2937').pack(anchor='w')
-            
-            desc_text = description or 'No description'
-            tk.Label(info_frame, text=f"{desc_text} ({step_count} steps)", 
-                    font=('Segoe UI', 9), bg='#ffffff', fg='#6b7280').pack(anchor='w')
-            
-            # Share button
-            share_btn = tk.Button(group_row, text="🌐 Share", 
-                                 font=('Segoe UI', 9, 'bold'), bg='#10b981', fg='#ffffff',
-                                 relief='flat', padx=15, pady=6, cursor='hand2', bd=0,
-                                 command=lambda gid=group_id: self._share_test_group(gid, popup))
-            share_btn.pack(side='right', padx=10, pady=5)
-        
-        # Close button
-        tk.Button(content_frame, text="Close", font=('Segoe UI', 10, 'bold'), 
-                 bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=8, 
-                 cursor='hand2', bd=0, command=popup.destroy).pack(pady=(10, 0))
-    
-    def _share_test_group(self, group_id, parent_popup):
-        """Share a specific test group to GitHub"""
+    def _share_test_group_direct(self, group_id):
+        """Share a specific test group directly (streamlined UX)"""
         try:
             from github_test_groups_manager import GitHubTestGroupsManager
             
-            # Close parent popup
-            parent_popup.destroy()
-            
-            # Initialize and share
+            # Initialize and share directly
             github_manager = GitHubTestGroupsManager(self.root)
             github_manager.share_test_group(group_id)
             
@@ -1142,6 +1117,8 @@ class TestStepsManager:
                 "Please use Enterprise Tools to authenticate with GitHub first.", "info")
         except Exception as e:
             self.show_popup("Error", f"Failed to share test group: {str(e)}", "error")
+    
+
     
     def _show_smart_recording_placeholder(self):
         """Show Smart Recording placeholder with feature preview"""
