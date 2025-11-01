@@ -120,19 +120,19 @@ class SFTPManager:
             btn_frame = tk.Frame(row_frame, bg=bg_color)
             btn_frame.place(relx=0.80, y=4, relwidth=0.20, height=22)  # Exact 20% width
             
-            test_btn = tk.Button(btn_frame, text="⚙ Test", font=('Segoe UI', 8, 'bold'), 
+            test_btn = tk.Button(btn_frame, text="Test", font=('Segoe UI', 8, 'bold'), 
                                bg='#10b981', fg='white', relief='flat', 
-                               padx=4, pady=1, cursor='hand2', bd=0,
+                               padx=4, pady=1, cursor='hand2', bd=0, highlightthickness=0,
                                command=lambda pid=profile_id: self.test_sftp_profile(pid))
             
-            edit_btn = tk.Button(btn_frame, text="✏ Edit", font=('Segoe UI', 8, 'bold'), 
+            edit_btn = tk.Button(btn_frame, text="Edit", font=('Segoe UI', 8, 'bold'), 
                                bg='#3b82f6', fg='white', relief='flat', 
-                               padx=4, pady=1, cursor='hand2', bd=0,
+                               padx=4, pady=1, cursor='hand2', bd=0, highlightthickness=0,
                                command=lambda pid=profile_id: self.edit_sftp_profile(pid))
             
-            delete_btn = tk.Button(btn_frame, text="× Delete", font=('Segoe UI', 8, 'bold'), 
+            delete_btn = tk.Button(btn_frame, text="Delete", font=('Segoe UI', 8, 'bold'), 
                                  bg='#ef4444', fg='white', relief='flat', 
-                                 padx=4, pady=1, cursor='hand2', bd=0,
+                                 padx=4, pady=1, cursor='hand2', bd=0, highlightthickness=0,
                                  command=lambda pid=profile_id: self.delete_sftp_profile(pid))
             
             # Use relative positioning for consistent layout (5%-30%-5%-30%-5%-25%)
@@ -231,7 +231,7 @@ class SFTPManager:
             widget.destroy()
         
         # Update header for form view
-        title = "✏️ Edit SFTP Profile" if profile_id else "➕ Add SFTP Profile"
+        title = "✏ Edit SFTP Profile" if profile_id else "➕ Add SFTP Profile"
         self.update_header(title, show_back_button=True)
         
         # Create scrollable form container
