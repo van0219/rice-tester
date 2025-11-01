@@ -58,13 +58,18 @@ class RiceUI:
     def setup_rice_tab_content(self, parent):
         """Setup RICE profiles tab content"""
         
-        # Enhanced layout with visual hierarchy
-        main_container = tk.Frame(parent, bg='#f8fafc', padx=20, pady=20)
-        main_container.pack(fill="both", expand=True)
+        # Main container with light background (matching SFTP)
+        self.main_container = tk.Frame(parent, bg='#f8fafc')
+        self.main_container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Modern card container (matching SFTP)
+        self.card_frame = tk.Frame(self.main_container, bg='#ffffff', relief='solid', bd=1,
+                                  highlightbackground='#e5e7eb', highlightthickness=1)
+        self.card_frame.pack(fill="both", expand=True)
         
         # RICE profiles section - Primary card
-        rice_card = tk.Frame(main_container, bg='#ffffff', relief='solid', bd=1)
-        rice_card.pack(fill="x", pady=(0, 20))
+        rice_card = tk.Frame(self.card_frame, bg='#ffffff')
+        rice_card.pack(fill="x", pady=(0, 20), padx=20)
         
         rice_frame = tk.Frame(rice_card, bg='#ffffff', padx=20, pady=15)
         rice_frame.pack(fill="x")
@@ -226,9 +231,9 @@ class RiceUI:
         
         # Buttons moved to header - this section removed to save vertical space
         
-        # Scenarios section - Secondary card with subtle background
-        scenarios_card = tk.Frame(main_container, bg='#ffffff', relief='solid', bd=1)
-        scenarios_card.pack(fill="both", expand=True)
+        # Scenarios section - Secondary card within main card
+        scenarios_card = tk.Frame(self.card_frame, bg='#ffffff')
+        scenarios_card.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
         scenarios_frame = tk.Frame(scenarios_card, bg='#ffffff', padx=20, pady=15)
         scenarios_frame.pack(fill="both", expand=True)
