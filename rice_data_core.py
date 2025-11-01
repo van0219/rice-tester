@@ -489,8 +489,8 @@ class RiceDataManager:
         center_frame.pack(expand=True)
         
         # Edit button (primary action for RICE)
-        edit_btn = tk.Button(center_frame, text="✏ Edit", font=('Segoe UI', 8, 'bold'), 
-                            bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=1, 
+        edit_btn = tk.Button(center_frame, text="Edit", font=('Segoe UI', 8, 'bold'), 
+                            bg='#3b82f6', fg='white', relief='flat', padx=4, pady=1, 
                             cursor='hand2', bd=0, highlightthickness=0,
                             command=lambda pid=profile_id: self.edit_rice_profile(pid))
         edit_btn.pack(side='left', padx=(0, 3))
@@ -804,7 +804,7 @@ class RiceDataManager:
         steps_frame.place(relx=SCENARIO_COLS['steps']['start'], y=5, relwidth=SCENARIO_COLS['steps']['width'], height=25)
         
         if step_count > 0:
-            steps_btn = tk.Button(steps_frame, text=f"📋 {step_count}", font=('Segoe UI', 8), 
+            steps_btn = tk.Button(steps_frame, text=f"{step_count}", font=('Segoe UI', 8), 
                                 bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=2, 
                                 cursor='hand2', bd=0, highlightthickness=0,
                                 command=lambda: self._view_scenario_steps(scenario_id, scenario_number))
@@ -819,7 +819,7 @@ class RiceDataManager:
         file_frame.place(relx=SCENARIO_COLS['file']['start'], y=5, relwidth=SCENARIO_COLS['file']['width'], height=25)
         
         if file_path:
-            file_btn = tk.Button(file_frame, text="📁", font=('Segoe UI', 10), 
+            file_btn = tk.Button(file_frame, text="File", font=('Segoe UI', 8), 
                                 bg='#6b7280', fg='#ffffff', relief='flat', padx=4, pady=2, 
                                 cursor='hand2', bd=0, highlightthickness=0,
                                 command=lambda: self.download_file(file_path))
@@ -829,7 +829,7 @@ class RiceDataManager:
         screenshot_frame = tk.Frame(row_frame, bg=bg_color)
         screenshot_frame.place(relx=SCENARIO_COLS['screenshot']['start'], y=5, relwidth=SCENARIO_COLS['screenshot']['width'], height=25)
         
-        screenshot_btn = tk.Button(screenshot_frame, text="📷", font=('Segoe UI', 10), 
+        screenshot_btn = tk.Button(screenshot_frame, text="View", font=('Segoe UI', 8), 
                                   bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=2, 
                                   cursor='hand2', bd=0, highlightthickness=0,
                                   command=lambda: self._view_screenshots(scenario_id))
@@ -844,7 +844,7 @@ class RiceDataManager:
         center_frame.pack(expand=True)
         
         # Run button (primary action for scenarios)
-        run_btn = tk.Button(center_frame, text="▶ Run", font=('Segoe UI', 8), 
+        run_btn = tk.Button(center_frame, text="Run", font=('Segoe UI', 8), 
                            bg='#10b981', fg='#ffffff', relief='flat', padx=8, pady=2, 
                            cursor='hand2', bd=0, highlightthickness=0,
                            command=lambda: self._run_scenario(scenario_id))
@@ -961,13 +961,14 @@ class RiceDataManager:
                 child.config(bg='#dbeafe')
     
     def _view_screenshots(self, scenario_id):
-        """View screenshots for scenario"""
+        """View screenshots for scenario with modern UI/UX design"""
         try:
-            # Get screenshots from database with proper column handling
+            # Get screenshots from database with enhanced data
             cursor = self.db_manager.conn.cursor()
             cursor.execute("""
                 SELECT COALESCE(ts.name, ss.step_name) as step_name, 
-                       ss.screenshot_before, ss.screenshot_after 
+                       ss.screenshot_before, ss.screenshot_after, ss.step_order,
+                       COALESCE(ts.step_type, ss.step_type) as step_type
                 FROM scenario_steps ss
                 LEFT JOIN test_steps ts ON ss.test_step_id = ts.id
                 WHERE ss.user_id = ? AND ss.rice_profile = ? AND ss.scenario_number = (
@@ -981,41 +982,70 @@ class RiceDataManager:
                 self.show_popup("No Screenshots", "No screenshots found for this scenario.", "warning")
                 return
             
-            # Get actual scenario number
+            # Get scenario details
             cursor.execute("""
-                SELECT scenario_number FROM scenarios 
+                SELECT scenario_number, description FROM scenarios 
                 WHERE id = ? AND user_id = ?
             """, (scenario_id, self.db_manager.user_id))
             scenario_result = cursor.fetchone()
-            scenario_number = scenario_result[0] if scenario_result else scenario_id
+            scenario_number, scenario_desc = scenario_result if scenario_result else (scenario_id, "Unknown")
             
-            # Create screenshot viewer dialog
+            # Create modern screenshot viewer dialog
             popup = tk.Toplevel()
-            popup.title(f"Screenshots - Scenario #{scenario_number}")
-            popup.configure(bg='#ffffff')
+            popup.title(f"📷 Screenshots - Scenario #{scenario_number}")
+            popup.configure(bg='#f8fafc')
+            popup.resizable(True, True)
             
-            # Center the dialog
-            center_dialog(popup, 800, 600)
+            # Enhanced dialog size and centering
+            center_dialog(popup, 1000, 700)
             
             try:
                 popup.iconbitmap("infor_logo.ico")
             except:
                 pass
             
-            # Header
-            header_frame = tk.Frame(popup, bg='#8b5cf6', height=50)
+            # Modern header with enhanced design
+            header_frame = tk.Frame(popup, bg='#3b82f6', height=60)
             header_frame.pack(fill="x")
             header_frame.pack_propagate(False)
             
-            tk.Label(header_frame, text=f"📷 Screenshots - Scenario #{scenario_number}", 
-                    font=('Segoe UI', 14, 'bold'), bg='#8b5cf6', fg='#ffffff').pack(expand=True)
+            header_content = tk.Frame(header_frame, bg='#3b82f6')
+            header_content.pack(expand=True, fill='both', padx=20, pady=15)
             
-            # Content frame with scrollbar
-            content_frame = tk.Frame(popup, bg='#ffffff')
-            content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+            tk.Label(header_content, text=f"📷 Screenshots - Scenario #{scenario_number}", 
+                    font=('Segoe UI', 16, 'bold'), bg='#3b82f6', fg='#ffffff').pack(side='left')
             
-            # Scrollable frame
-            canvas = tk.Canvas(content_frame, bg='#ffffff')
+            # Scenario description in header
+            if scenario_desc and scenario_desc != "Unknown":
+                tk.Label(header_content, text=f"• {scenario_desc[:50]}{'...' if len(scenario_desc) > 50 else ''}", 
+                        font=('Segoe UI', 10), bg='#3b82f6', fg='#bfdbfe').pack(side='left', padx=(15, 0))
+            
+            # Main container with modern card design
+            main_frame = tk.Frame(popup, bg='#f8fafc')
+            main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+            
+            # Statistics card
+            stats_card = tk.Frame(main_frame, bg='#ffffff', relief='solid', bd=1,
+                                 highlightbackground='#e5e7eb', highlightthickness=1)
+            stats_card.pack(fill='x', pady=(0, 15))
+            
+            stats_content = tk.Frame(stats_card, bg='#ffffff', padx=20, pady=12)
+            stats_content.pack(fill='x')
+            
+            # Count screenshots with data
+            screenshot_count = sum(1 for _, before, after, _, _ in screenshots if before or after)
+            step_count = len(screenshots)
+            
+            tk.Label(stats_content, text=f"📊 {screenshot_count} screenshots from {step_count} steps", 
+                    font=('Segoe UI', 11, 'bold'), bg='#ffffff', fg='#374151').pack(side='left')
+            
+            # Content frame with enhanced scrollbar
+            content_frame = tk.Frame(main_frame, bg='#ffffff', relief='solid', bd=1,
+                                   highlightbackground='#e5e7eb', highlightthickness=1)
+            content_frame.pack(fill="both", expand=True)
+            
+            # Enhanced scrollable frame with better styling
+            canvas = tk.Canvas(content_frame, bg='#ffffff', highlightthickness=0)
             scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=canvas.yview)
             scrollable_frame = tk.Frame(canvas, bg='#ffffff')
             
@@ -1040,88 +1070,269 @@ class RiceDataManager:
             canvas.bind('<Enter>', _bind_to_mousewheel)
             canvas.bind('<Leave>', _unbind_from_mousewheel)
             
-            canvas.pack(side="left", fill="both", expand=True)
-            scrollbar.pack(side="right", fill="y")
+            canvas.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+            scrollbar.pack(side="right", fill="y", padx=(0, 10), pady=10)
             
-            # Display screenshots
-            for i, (step_name, before_screenshot, after_screenshot) in enumerate(screenshots):
-                step_frame = tk.Frame(scrollable_frame, bg='#f9fafb', relief='solid', bd=1)
-                step_frame.pack(fill="x", pady=5)
+            # Display screenshots with modern card design
+            for i, (step_name, before_screenshot, after_screenshot, step_order, step_type) in enumerate(screenshots):
+                # Skip steps without screenshots
+                if not before_screenshot and not after_screenshot:
+                    continue
                 
-                # Step header
-                tk.Label(step_frame, text=f"Step {i+1}: {step_name}", 
-                        font=('Segoe UI', 11, 'bold'), bg='#f9fafb', fg='#374151').pack(pady=5)
+                # Modern step card
+                step_card = tk.Frame(scrollable_frame, bg='#ffffff', relief='solid', bd=1,
+                                   highlightbackground='#e5e7eb', highlightthickness=1)
+                step_card.pack(fill="x", pady=8, padx=10)
                 
-                # Screenshots row
-                screenshots_row = tk.Frame(step_frame, bg='#f9fafb')
-                screenshots_row.pack(fill="x", padx=10, pady=5)
+                # Enhanced step header with type indicator
+                header_frame = tk.Frame(step_card, bg='#f8fafc', height=40)
+                header_frame.pack(fill="x")
+                header_frame.pack_propagate(False)
                 
-                # Before screenshot
-                if before_screenshot:
-                    before_frame = tk.Frame(screenshots_row, bg='#ffffff', relief='solid', bd=1)
-                    before_frame.pack(side="left", padx=5, pady=5)
+                header_content = tk.Frame(header_frame, bg='#f8fafc')
+                header_content.pack(expand=True, fill='both', padx=15, pady=10)
+                
+                # Step info with type badge
+                step_info = tk.Frame(header_content, bg='#f8fafc')
+                step_info.pack(side='left')
+                
+                tk.Label(step_info, text=f"Step {step_order}: {step_name or 'Unnamed Step'}", 
+                        font=('Segoe UI', 12, 'bold'), bg='#f8fafc', fg='#1f2937').pack(side='left')
+                
+                # Type badge
+                if step_type:
+                    type_colors = {
+                        'Navigate': '#3b82f6', 'Click': '#10b981', 'Text Input': '#f59e0b',
+                        'Wait': '#8b5cf6', 'Email Check': '#ef4444', 'Element Click': '#10b981'
+                    }
+                    type_color = type_colors.get(step_type, '#6b7280')
                     
-                    tk.Label(before_frame, text="Before", font=('Segoe UI', 9, 'bold'), 
-                            bg='#ffffff', fg='#374151').pack(pady=2)
+                    type_badge = tk.Label(step_info, text=step_type, font=('Segoe UI', 8, 'bold'),
+                                        bg=type_color, fg='#ffffff', padx=8, pady=2)
+                    type_badge.pack(side='left', padx=(10, 0))
+                
+                # Screenshots container with better layout
+                screenshots_container = tk.Frame(step_card, bg='#ffffff')
+                screenshots_container.pack(fill="x", padx=15, pady=15)
+                
+                # Determine layout based on available screenshots
+                has_before = bool(before_screenshot)
+                has_after = bool(after_screenshot)
+                
+                if has_before and has_after:
+                    # Side-by-side layout for before/after
+                    screenshots_row = tk.Frame(screenshots_container, bg='#ffffff')
+                    screenshots_row.pack(fill="x")
+                elif has_before or has_after:
+                    # Single screenshot centered
+                    screenshots_row = tk.Frame(screenshots_container, bg='#ffffff')
+                    screenshots_row.pack()
+                
+                # Before screenshot with enhanced styling
+                if before_screenshot:
+                    before_frame = tk.Frame(screenshots_row, bg='#ffffff', relief='solid', bd=1,
+                                          highlightbackground='#d1d5db', highlightthickness=1)
+                    if has_before and has_after:
+                        before_frame.pack(side="left", padx=(0, 10), pady=5, fill='both', expand=True)
+                    else:
+                        before_frame.pack(pady=5)
+                    
+                    # Enhanced header with icon
+                    before_header = tk.Frame(before_frame, bg='#fef3c7', height=30)
+                    before_header.pack(fill='x')
+                    before_header.pack_propagate(False)
+                    
+                    tk.Label(before_header, text="📸 Before", font=('Segoe UI', 10, 'bold'), 
+                            bg='#fef3c7', fg='#92400e').pack(expand=True)
                     
                     try:
-                        # Load and display image
+                        # Load and display image with better sizing
                         import base64
                         from PIL import Image, ImageTk
                         from io import BytesIO
                         
                         image_data = base64.b64decode(before_screenshot)
                         image = Image.open(BytesIO(image_data))
-                        image.thumbnail((600, 400), Image.Resampling.LANCZOS)
+                        
+                        # Better thumbnail sizing based on layout
+                        if has_before and has_after:
+                            image.thumbnail((450, 300), Image.Resampling.LANCZOS)
+                        else:
+                            image.thumbnail((600, 400), Image.Resampling.LANCZOS)
+                        
                         photo = ImageTk.PhotoImage(image)
                         
-                        img_label = tk.Label(before_frame, image=photo, bg='#ffffff')
+                        img_label = tk.Label(before_frame, image=photo, bg='#ffffff', cursor='hand2')
                         img_label.image = photo  # Keep a reference
-                        img_label.pack(padx=5, pady=5)
+                        img_label.pack(padx=8, pady=8)
+                        
+                        # Add click to enlarge functionality
+                        img_label.bind('<Button-1>', lambda e: self._enlarge_screenshot(before_screenshot, f"Step {step_order} - Before"))
+                        
                     except Exception as e:
-                        tk.Label(before_frame, text=f"Error loading image: {str(e)}", 
-                                bg='#ffffff', fg='#ef4444').pack(padx=5, pady=5)
+                        error_frame = tk.Frame(before_frame, bg='#fef2f2', padx=10, pady=10)
+                        error_frame.pack(fill='both', expand=True)
+                        tk.Label(error_frame, text="❌ Error loading image", 
+                                font=('Segoe UI', 10, 'bold'), bg='#fef2f2', fg='#dc2626').pack()
+                        tk.Label(error_frame, text=str(e)[:50], 
+                                font=('Segoe UI', 8), bg='#fef2f2', fg='#7f1d1d').pack()
                 
-                # After screenshot
+                # After screenshot with enhanced styling
                 if after_screenshot:
-                    after_frame = tk.Frame(screenshots_row, bg='#ffffff', relief='solid', bd=1)
-                    after_frame.pack(side="left", padx=5, pady=5)
+                    after_frame = tk.Frame(screenshots_row, bg='#ffffff', relief='solid', bd=1,
+                                         highlightbackground='#d1d5db', highlightthickness=1)
+                    if has_before and has_after:
+                        after_frame.pack(side="left", padx=(10, 0), pady=5, fill='both', expand=True)
+                    else:
+                        after_frame.pack(pady=5)
                     
-                    tk.Label(after_frame, text="After", font=('Segoe UI', 9, 'bold'), 
-                            bg='#ffffff', fg='#374151').pack(pady=2)
+                    # Enhanced header with icon
+                    after_header = tk.Frame(after_frame, bg='#dcfce7', height=30)
+                    after_header.pack(fill='x')
+                    after_header.pack_propagate(False)
+                    
+                    tk.Label(after_header, text="📸 After", font=('Segoe UI', 10, 'bold'), 
+                            bg='#dcfce7', fg='#166534').pack(expand=True)
                     
                     try:
-                        # Load and display image
+                        # Load and display image with better sizing
                         import base64
                         from PIL import Image, ImageTk
                         from io import BytesIO
                         
                         image_data = base64.b64decode(after_screenshot)
                         image = Image.open(BytesIO(image_data))
-                        image.thumbnail((600, 400), Image.Resampling.LANCZOS)
+                        
+                        # Better thumbnail sizing based on layout
+                        if has_before and has_after:
+                            image.thumbnail((450, 300), Image.Resampling.LANCZOS)
+                        else:
+                            image.thumbnail((600, 400), Image.Resampling.LANCZOS)
+                        
                         photo = ImageTk.PhotoImage(image)
                         
-                        img_label = tk.Label(after_frame, image=photo, bg='#ffffff')
+                        img_label = tk.Label(after_frame, image=photo, bg='#ffffff', cursor='hand2')
                         img_label.image = photo  # Keep a reference
-                        img_label.pack(padx=5, pady=5)
+                        img_label.pack(padx=8, pady=8)
+                        
+                        # Add click to enlarge functionality
+                        img_label.bind('<Button-1>', lambda e: self._enlarge_screenshot(after_screenshot, f"Step {step_order} - After"))
+                        
                     except Exception as e:
-                        tk.Label(after_frame, text=f"Error loading image: {str(e)}", 
-                                bg='#ffffff', fg='#ef4444').pack(padx=5, pady=5)
+                        error_frame = tk.Frame(after_frame, bg='#fef2f2', padx=10, pady=10)
+                        error_frame.pack(fill='both', expand=True)
+                        tk.Label(error_frame, text="❌ Error loading image", 
+                                font=('Segoe UI', 10, 'bold'), bg='#fef2f2', fg='#dc2626').pack()
+                        tk.Label(error_frame, text=str(e)[:50], 
+                                font=('Segoe UI', 8), bg='#fef2f2', fg='#7f1d1d').pack()
             
-            # Close button
-            close_frame = tk.Frame(popup, bg='#ffffff')
-            close_frame.pack(fill="x", padx=20, pady=10)
+            # Modern action buttons
+            action_card = tk.Frame(main_frame, bg='#ffffff', relief='solid', bd=1,
+                                  highlightbackground='#e5e7eb', highlightthickness=1)
+            action_card.pack(fill='x', pady=(15, 0))
             
-            tk.Button(close_frame, text="Close", font=('Segoe UI', 10, 'bold'), 
-                     bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=8, 
-                     cursor='hand2', bd=0, command=popup.destroy).pack()
+            action_frame = tk.Frame(action_card, bg='#ffffff', padx=20, pady=15)
+            action_frame.pack(fill='x')
+            
+            # Button container
+            button_container = tk.Frame(action_frame, bg='#ffffff')
+            button_container.pack(expand=True)
+            
+            # Export button (future feature)
+            export_btn = tk.Button(button_container, text="📤 Export Screenshots", 
+                                  font=('Segoe UI', 10, 'bold'), bg='#3b82f6', fg='#ffffff', 
+                                  relief='flat', padx=20, pady=10, cursor='hand2', bd=0,
+                                  command=lambda: self.show_popup("Feature", "Export functionality coming soon!", "info"))
+            export_btn.pack(side='left', padx=(0, 10))
+            
+            # Close button with enhanced styling
+            close_btn = tk.Button(button_container, text="✕ Close", 
+                                 font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
+                                 relief='flat', padx=20, pady=10, cursor='hand2', bd=0,
+                                 command=popup.destroy)
+            close_btn.pack(side='left')
+            
+            # Add hover effects
+            def on_export_enter(e): export_btn.config(bg='#2563eb')
+            def on_export_leave(e): export_btn.config(bg='#3b82f6')
+            def on_close_enter(e): close_btn.config(bg='#4b5563')
+            def on_close_leave(e): close_btn.config(bg='#6b7280')
+            
+            export_btn.bind('<Enter>', on_export_enter)
+            export_btn.bind('<Leave>', on_export_leave)
+            close_btn.bind('<Enter>', on_close_enter)
+            close_btn.bind('<Leave>', on_close_leave)
             
             popup.transient()
             popup.grab_set()
             popup.focus_set()
             
+            # Show empty state if no screenshots with actual data
+            if screenshot_count == 0:
+                # Clear content and show empty state
+                for widget in scrollable_frame.winfo_children():
+                    widget.destroy()
+                
+                empty_frame = tk.Frame(scrollable_frame, bg='#ffffff')
+                empty_frame.pack(expand=True, fill='both', pady=50)
+                
+                tk.Label(empty_frame, text="📷", font=('Segoe UI', 48), bg='#ffffff', fg='#d1d5db').pack()
+                tk.Label(empty_frame, text="No Screenshots Available", 
+                        font=('Segoe UI', 16, 'bold'), bg='#ffffff', fg='#6b7280').pack(pady=(10, 5))
+                tk.Label(empty_frame, text="Screenshots will appear here after running test scenarios", 
+                        font=('Segoe UI', 11), bg='#ffffff', fg='#9ca3af').pack()
+            
         except Exception as e:
             self.show_popup("Error", f"Failed to load screenshots: {str(e)}", "error")
+    
+    def _enlarge_screenshot(self, screenshot_data, title):
+        """Show enlarged screenshot in a separate window"""
+        try:
+            import base64
+            from PIL import Image, ImageTk
+            from io import BytesIO
+            
+            # Create enlarged view window
+            enlarge_popup = tk.Toplevel()
+            enlarge_popup.title(f"🔍 {title}")
+            enlarge_popup.configure(bg='#000000')
+            
+            # Center and size for enlarged view
+            center_dialog(enlarge_popup, 900, 700)
+            
+            try:
+                enlarge_popup.iconbitmap("infor_logo.ico")
+            except:
+                pass
+            
+            # Load and display full-size image
+            image_data = base64.b64decode(screenshot_data)
+            image = Image.open(BytesIO(image_data))
+            
+            # Scale to fit window while maintaining aspect ratio
+            image.thumbnail((850, 650), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+            
+            # Image container
+            img_frame = tk.Frame(enlarge_popup, bg='#000000')
+            img_frame.pack(expand=True, fill='both', padx=25, pady=25)
+            
+            img_label = tk.Label(img_frame, image=photo, bg='#000000')
+            img_label.image = photo  # Keep reference
+            img_label.pack(expand=True)
+            
+            # Close on click or Escape
+            def close_enlarged(event=None):
+                enlarge_popup.destroy()
+            
+            enlarge_popup.bind('<Button-1>', close_enlarged)
+            enlarge_popup.bind('<Escape>', close_enlarged)
+            img_label.bind('<Button-1>', close_enlarged)
+            
+            enlarge_popup.focus_set()
+            
+        except Exception as e:
+            self.show_popup("Error", f"Failed to enlarge screenshot: {str(e)}", "error")
     
     def _view_scenario_steps(self, scenario_id, scenario_number):
         """View steps for scenario"""
