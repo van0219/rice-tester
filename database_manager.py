@@ -175,6 +175,8 @@ class DatabaseManager:
             cursor.execute("ALTER TABLE scenario_steps ADD COLUMN step_type TEXT")
             cursor.execute("ALTER TABLE scenario_steps ADD COLUMN step_target TEXT")
             cursor.execute("ALTER TABLE scenario_steps ADD COLUMN step_description TEXT")
+            cursor.execute("ALTER TABLE scenario_steps ADD COLUMN test_step_id INTEGER")
+            cursor.execute("ALTER TABLE scenario_steps ADD COLUMN custom_value TEXT")
             self.conn.commit()
         except Exception:
             pass  # Columns already exist
@@ -186,6 +188,14 @@ class DatabaseManager:
             cursor.execute("ALTER TABLE scenario_steps ADD COLUMN screenshot_timestamp TIMESTAMP")
             cursor.execute("ALTER TABLE scenario_steps ADD COLUMN user_input_required BOOLEAN DEFAULT 0")
             cursor.execute("ALTER TABLE scenario_steps ADD COLUMN execution_status TEXT DEFAULT 'pending'")
+            self.conn.commit()
+        except Exception:
+            pass  # Columns already exist
+        
+        # Add missing columns for modern scenario system
+        try:
+            cursor.execute("ALTER TABLE scenario_steps ADD COLUMN test_step_id INTEGER")
+            cursor.execute("ALTER TABLE scenario_steps ADD COLUMN custom_value TEXT")
             self.conn.commit()
         except Exception:
             pass  # Columns already exist
@@ -362,6 +372,41 @@ class DatabaseManager:
             )
         """)
         
+        # Create tenants table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tenants (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                tenant_name TEXT NOT NULL,
+                environment TEXT NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                UNIQUE(user_id, tenant_name)
+            )
+        """)
+        
+        # Populate default tenants if empty
+        cursor.execute("SELECT COUNT(*) FROM tenants WHERE user_id = ?", (self.user_id,))
+        if cursor.fetchone()[0] == 0:
+            default_tenants = [
+                ('TAMICS10_AX1', 'Sandbox', 'Default sandbox environment'),
+                ('PROD', 'Production', 'Production environment'),
+                ('TEST', 'Test', 'Testing environment'),
+                ('DEV', 'Development', 'Development environment'),
+                ('PREPROD', 'Preprod', 'Pre-production environment'),
+                ('PRISTINE', 'Pristine', 'Pristine environment'),
+                ('UAT', 'UAT', 'User Acceptance Testing environment'),
+                ('STAGING', 'Staging', 'Staging environment'),
+                ('QA', 'QA', 'Quality Assurance environment'),
+                ('INTEGRATION', 'Integration', 'Integration testing environment')
+            ]
+            for tenant_name, environment, description in default_tenants:
+                cursor.execute("""
+                    INSERT INTO tenants (user_id, tenant_name, environment, description)
+                    VALUES (?, ?, ?, ?)
+                """, (self.user_id, tenant_name, environment, description))
+        
         # Add file_content column if it doesn't exist (for existing databases)
         try:
             cursor.execute("ALTER TABLE service_accounts ADD COLUMN file_content BLOB")
@@ -395,6 +440,13 @@ class DatabaseManager:
                 SELECT RAISE(ABORT, 'Username is reserved for system administrators');
             END
         """)
+        
+        # Add isAdmin column to users table if it doesn't exist
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN isAdmin BOOLEAN DEFAULT 0")
+            self.conn.commit()
+        except Exception:
+            pass  # Column already exists
         
         self.conn.commit()
     
@@ -1040,6 +1092,53 @@ class DatabaseManager:
             WHERE {where_clause}
         """, params)
         return cursor.fetchone()[0]
+    
+    def get_tenants(self):
+        """Get all tenants for user"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT id, tenant_name, environment, description
+            FROM tenants 
+            WHERE user_id = ? 
+            ORDER BY tenant_name
+        """, (self.user_id,))
+        return cursor.fetchall()
+    
+    def add_tenant(self, tenant_name, environment, description=None):
+        """Add new tenant"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO tenants (user_id, tenant_name, environment, description)
+            VALUES (?, ?, ?, ?)
+        """, (self.user_id, tenant_name, environment, description))
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def update_tenant(self, tenant_id, tenant_name, environment, description=None):
+        """Update existing tenant"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE tenants 
+            SET tenant_name = ?, environment = ?, description = ?
+            WHERE id = ? AND user_id = ?
+        """, (tenant_name, environment, description, tenant_id, self.user_id))
+        self.conn.commit()
+    
+    def delete_tenant(self, tenant_id):
+        """Delete tenant"""
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM tenants WHERE id = ? AND user_id = ?", (tenant_id, self.user_id))
+        self.conn.commit()
+    
+    def get_tenant_by_id(self, tenant_id):
+        """Get tenant by ID"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT id, tenant_name, environment, description
+            FROM tenants 
+            WHERE id = ? AND user_id = ?
+        """, (tenant_id, self.user_id))
+        return cursor.fetchone()
     
     def close(self):
         """Close database connection"""
