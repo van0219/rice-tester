@@ -145,15 +145,15 @@ class TestUsersManager:
             center_frame = tk.Frame(actions_frame, bg=bg_color)
             center_frame.pack(expand=True)
             
-            edit_btn = tk.Button(center_frame, text="✏ Edit", font=('Segoe UI', 8, 'bold'), 
+            edit_btn = tk.Button(center_frame, text="Edit", font=('Segoe UI', 8, 'bold'), 
                                bg='#3b82f6', fg='#ffffff', relief='flat', 
-                               padx=4, pady=1, cursor='hand2', bd=0,
+                               padx=4, pady=1, cursor='hand2', bd=0, highlightthickness=0,
                                command=lambda uid=user_id: self._edit_user(uid))
             edit_btn.pack(side='left', padx=(0, 3))
             
-            delete_btn = tk.Button(center_frame, text="× Delete", font=('Segoe UI', 8, 'bold'), 
+            delete_btn = tk.Button(center_frame, text="Delete", font=('Segoe UI', 8, 'bold'), 
                                  bg='#ef4444', fg='#ffffff', relief='flat', 
-                                 padx=4, pady=1, cursor='hand2', bd=0,
+                                 padx=4, pady=1, cursor='hand2', bd=0, highlightthickness=0,
                                  command=lambda uid=user_id: self._delete_user(uid))
             delete_btn.pack(side='left')
             
@@ -308,7 +308,7 @@ class TestUsersManager:
             parent=self.root,
             title="Edit Test User",
             width=500,
-            height=400,
+            height=364,
             resizable=True
         )
         
