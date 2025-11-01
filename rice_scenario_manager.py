@@ -298,248 +298,172 @@ class ScenarioManager:
             self.show_popup("Error", f"Failed to open add scenario form: {str(e)}", "error")
     
     def view_scenario_steps(self, scenario_id, scenario_number, current_profile):
-        """View steps for a scenario with pagination"""
+        """View steps for a scenario using reliable table approach (no canvas issues)"""
         popup = tk.Toplevel()
         popup.title(f"Scenario #{scenario_number} - Steps")
-        center_dialog(popup, 800, 600)
-        popup.configure(bg='#ffffff')
+        center_dialog(popup, 900, 650)
+        popup.configure(bg='#f8fafc')
+        popup.resizable(True, True)
         
         try:
             popup.iconbitmap("infor_logo.ico")
         except:
             pass
         
-        frame = tk.Frame(popup, bg='#ffffff', padx=20, pady=20)
-        frame.pack(fill="both", expand=True)
+        # Main container
+        main_frame = tk.Frame(popup, bg='#f8fafc')
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Header
-        tk.Label(frame, text=f"Scenario #{scenario_number} - Test Steps", 
-                font=('Segoe UI', 14, 'bold'), bg='#ffffff').pack(pady=(0, 20))
+        header_frame = tk.Frame(main_frame, bg='#3b82f6', height=50)
+        header_frame.pack(fill='x', pady=(0, 15))
+        header_frame.pack_propagate(False)
         
-        # Steps container
-        steps_container = tk.Frame(frame, bg='#ffffff')
-        steps_container.pack(fill='both', expand=True, pady=(0, 20))
+        tk.Label(header_frame, text=f"📋 Scenario #{scenario_number} - Test Steps", 
+                font=('Segoe UI', 14, 'bold'), bg='#3b82f6', fg='#ffffff').pack(expand=True)
         
-        # Headers
-        headers_frame = tk.Frame(steps_container, bg='#e5e7eb', height=30)
-        headers_frame.pack(fill='x')
-        headers_frame.pack_propagate(False)
-        
-        tk.Label(headers_frame, text="Step", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=10).place(relx=0, y=8, relwidth=0.08)
-        tk.Label(headers_frame, text="Name", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=10).place(relx=0.08, y=8, relwidth=0.25)
-        tk.Label(headers_frame, text="Type", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=10).place(relx=0.33, y=8, relwidth=0.15)
-        tk.Label(headers_frame, text="Value/Target", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=10).place(relx=0.48, y=8, relwidth=0.35)
-        tk.Label(headers_frame, text="Status", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=10).place(relx=0.83, y=8, relwidth=0.17)
-        
-        # Steps scroll frame
-        steps_scroll_frame = tk.Frame(steps_container, bg='#ffffff')
-        steps_scroll_frame.pack(fill='both', expand=True)
-        
-        # Pagination variables
-        current_page = 1
-        steps_per_page = 10
-        all_steps = []
-        
-        # Get all steps from database with proper column handling
+        # Get steps data from database
         try:
             cursor = self.db_manager.conn.cursor()
+            
+            # Enhanced query to handle both test_step_id references and direct step data
             cursor.execute("""
                 SELECT ss.step_order, 
-                       COALESCE(ts.name, ss.step_name) as step_name,
-                       COALESCE(ts.step_type, ss.step_type) as step_type, 
+                       COALESCE(ts.name, ss.step_name, 'Unnamed Step') as step_name,
+                       COALESCE(ts.step_type, ss.step_type, 'Unknown') as step_type, 
                        CASE 
                            WHEN COALESCE(ts.step_type, ss.step_type) IN ('Wait', 'Text Input') 
-                           THEN COALESCE(NULLIF(ss.step_description, ''), NULLIF(ss.custom_value, 'None'), ts.default_value)
-                           ELSE COALESCE(ts.target, ss.step_target)
+                           THEN COALESCE(NULLIF(ss.step_description, ''), NULLIF(ss.custom_value, 'None'), ts.target, 'No value')
+                           ELSE COALESCE(ts.target, ss.step_target, 'No target')
                        END as step_target,
-                       ss.execution_status
+                       COALESCE(ss.execution_status, 'Pending') as execution_status
                 FROM scenario_steps ss
                 LEFT JOIN test_steps ts ON ss.test_step_id = ts.id
                 WHERE ss.user_id = ? AND ss.rice_profile = ? AND ss.scenario_number = ?
                 ORDER BY ss.step_order
             """, (self.db_manager.user_id, str(current_profile), scenario_number))
             all_steps = cursor.fetchall()
+            
+            print(f"Debug: Found {len(all_steps)} steps for scenario {scenario_number}")
+            
         except Exception as e:
-            tk.Label(steps_scroll_frame, text=f"Error loading steps: {str(e)}", 
-                    font=('Segoe UI', 10), bg='#ffffff', fg='#ef4444').pack(pady=20)
+            print(f"Database error loading steps: {str(e)}")
             all_steps = []
         
-        def load_steps_page():
-            """Load steps for current page"""
-            # Clear existing steps
-            for widget in steps_scroll_frame.winfo_children():
-                widget.destroy()
-            
-            if not all_steps:
-                tk.Label(steps_scroll_frame, text="No steps found for this scenario", 
-                        font=('Segoe UI', 10), bg='#ffffff', fg='#6b7280').pack(pady=20)
-                return
-            
-            # Calculate pagination
-            total_steps = len(all_steps)
-            total_pages = max(1, (total_steps + steps_per_page - 1) // steps_per_page)
-            start_index = (current_page - 1) * steps_per_page
-            end_index = min(start_index + steps_per_page, total_steps)
-            
-            # Display steps for current page
-            page_steps = all_steps[start_index:end_index]
-            
-            for i, step in enumerate(page_steps):
+        # Create simple table using Treeview (reliable approach)
+        table_frame = tk.Frame(main_frame, bg='#ffffff', relief='solid', bd=1)
+        table_frame.pack(fill='both', expand=True, pady=(0, 15))
+        
+        # Create Treeview with columns
+        columns = ('Step', 'Name', 'Type', 'Target', 'Status')
+        tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
+        
+        # Configure column headings and widths
+        tree.heading('Step', text='🔢 Step')
+        tree.heading('Name', text='📝 Name')
+        tree.heading('Type', text='🏷️ Type')
+        tree.heading('Target', text='🎯 Value/Target')
+        tree.heading('Status', text='📊 Status')
+        
+        tree.column('Step', width=60, anchor='center')
+        tree.column('Name', width=200, anchor='w')
+        tree.column('Type', width=120, anchor='w')
+        tree.column('Target', width=300, anchor='w')
+        tree.column('Status', width=120, anchor='center')
+        
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(table_frame, orient='vertical', command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack tree and scrollbar
+        tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        # Populate table with steps data
+        if all_steps:
+            for step in all_steps:
                 step_order, step_name, step_type, step_target, execution_status = step
-                bg_color = '#ffffff' if i % 2 == 0 else '#f9fafb'
                 
-                row_frame = tk.Frame(steps_scroll_frame, bg=bg_color, height=30)
-                row_frame.pack(fill='x', pady=1)
-                row_frame.pack_propagate(False)
-                
-                # Step number
-                tk.Label(row_frame, text=str(step_order), font=('Segoe UI', 9), 
-                        bg=bg_color, fg='#374151', anchor='w', padx=10).place(relx=0, y=8, relwidth=0.08)
-                
-                # Step name
-                name_label = tk.Label(row_frame, text=step_name or '', font=('Segoe UI', 9), 
-                        bg=bg_color, fg='#374151', anchor='w', padx=10)
-                name_label.place(relx=0.08, y=8, relwidth=0.25)
-                if step_name and len(step_name) > 20:
-                    self._add_tooltip(name_label, step_name)
-                
-                # Step type
-                type_label = tk.Label(row_frame, text=step_type or '', font=('Segoe UI', 9), 
-                        bg=bg_color, fg='#374151', anchor='w', padx=10)
-                type_label.place(relx=0.33, y=8, relwidth=0.15)
-                if step_type and len(step_type) > 12:
-                    self._add_tooltip(type_label, step_type)
-                
-                # Target (truncated) - Show appropriate display for different step types
-                if step_type == 'Wait':
-                    # For Wait steps, show the value with appropriate suffix
-                    if step_target and step_target.isdigit():
-                        target_display = f"{step_target}s"
-                    else:
-                        target_display = step_target or '3s'
-                elif step_type == 'Text Input':
-                    # For Text Input steps, show the input value
-                    target_display = step_target or '[No value]'
-                else:
-                    target_display = (step_target[:40] + "...") if step_target and len(step_target) > 40 else step_target or ''
-                
-                target_label = tk.Label(row_frame, text=target_display, font=('Segoe UI', 9), 
-                        bg=bg_color, fg='#374151', anchor='w', padx=10)
-                target_label.place(relx=0.48, y=8, relwidth=0.35)
-                if step_target and len(step_target) > 40:
-                    self._add_tooltip(target_label, step_target)
-                
-                # Status
+                # Format display values
+                display_name = step_name or 'Unnamed Step'
+                display_type = step_type or 'Unknown'
+                display_target = step_target or 'No target'
                 status = execution_status or 'Pending'
-                status_color = '#10b981' if status == 'completed' else '#f59e0b' if status == 'pending' else '#ef4444'
-                tk.Label(row_frame, text=status.title(), font=('Segoe UI', 9), 
-                        bg=bg_color, fg=status_color, anchor='w', padx=10).place(relx=0.83, y=8, relwidth=0.17)
-            
-            # Update pagination info
-            page_label.config(text=f"Page {current_page} of {total_pages} ({total_steps} steps total)")
-            
-            # Update button states
-            prev_btn.config(state='normal' if current_page > 1 else 'disabled',
-                           bg='#6b7280' if current_page > 1 else '#9ca3af')
-            next_btn.config(state='normal' if current_page < total_pages else 'disabled',
-                           bg='#6b7280' if current_page < total_pages else '#9ca3af')
-        
-        def prev_page():
-            nonlocal current_page
-            if current_page > 1:
-                current_page -= 1
-                load_steps_page()
-        
-        def next_page():
-            nonlocal current_page
-            total_pages = max(1, (len(all_steps) + steps_per_page - 1) // steps_per_page)
-            if current_page < total_pages:
-                current_page += 1
-                load_steps_page()
-        
-        # Pagination controls
-        pagination_frame = tk.Frame(frame, bg='#ffffff')
-        pagination_frame.pack(fill='x', pady=(10, 20))
-        
-        # Center container for pagination
-        pagination_container = tk.Frame(pagination_frame, bg='#ffffff')
-        pagination_container.pack(expand=True)
-        
-        # Previous button
-        prev_btn = tk.Button(pagination_container, text="◀ Previous", font=('Segoe UI', 9), 
-                            bg='#6b7280', fg='#ffffff', relief='flat', padx=10, pady=4, 
-                            cursor='hand2', bd=0, command=prev_page)
-        prev_btn.pack(side='left')
-        
-        # Page info
-        page_label = tk.Label(pagination_container, text="Page 1 of 1 (0 steps total)", 
-                             font=('Segoe UI', 9), bg='#ffffff', fg='#374151')
-        page_label.pack(side='left', padx=20)
-        
-        # Next button
-        next_btn = tk.Button(pagination_container, text="Next ▶", font=('Segoe UI', 9), 
-                            bg='#6b7280', fg='#ffffff', relief='flat', padx=10, pady=4, 
-                            cursor='hand2', bd=0, command=next_page)
-        next_btn.pack(side='left')
-        
-        # Load first page
-        load_steps_page()
+                
+                # Format target display based on type
+                if display_type == 'Wait':
+                    if display_target and str(display_target).replace('.', '').isdigit():
+                        target_display = f"⏱️ {display_target}s"
+                    else:
+                        target_display = f"⏱️ {display_target or '3'}s"
+                elif display_type == 'Text Input':
+                    if display_target and display_target != 'No target':
+                        if 'password' in display_name.lower():
+                            target_display = f"✏️ {'•' * min(8, len(str(display_target)))}"
+                        else:
+                            target_display = f"✏️ {display_target}"
+                    else:
+                        target_display = "✏️ [No value]"
+                elif display_type == 'Navigate':
+                    target_display = f"🌐 {display_target if display_target != 'No target' else 'No URL'}"
+                elif display_type == 'Element Click':
+                    target_display = f"🖱️ {display_target if display_target != 'No target' else 'No selector'}"
+                elif display_type == 'Email Check':
+                    target_display = f"📧 {display_target if display_target != 'No target' else 'Email verification'}"
+                else:
+                    target_display = (display_target[:50] + "...") if display_target and len(str(display_target)) > 50 else display_target
+                
+                # Format status with icons
+                status_icons = {
+                    'completed': '✅ Completed',
+                    'pending': '⏳ Pending', 
+                    'failed': '❌ Failed',
+                    'success': '✅ Success',
+                    'error': '❌ Error',
+                    'not run': '⚪ Not Run',
+                    'running': '🔄 Running',
+                    'skipped': '⏭️ Skipped'
+                }
+                status_lower = status.lower() if status else 'pending'
+                status_display = status_icons.get(status_lower, f'⏳ {status.title()}')
+                
+                # Insert row into table
+                tree.insert('', 'end', values=(
+                    str(step_order),
+                    display_name,
+                    display_type,
+                    target_display,
+                    status_display
+                ))
+        else:
+            # Show empty state message
+            tree.insert('', 'end', values=(
+                '',
+                'No steps found for this scenario',
+                '',
+                'Steps will appear here once added',
+                ''
+            ))
         
         # Action buttons
-        action_frame = tk.Frame(frame, bg='#ffffff')
-        action_frame.pack(fill="x", pady=(10, 0))
+        action_frame = tk.Frame(main_frame, bg='#f8fafc')
+        action_frame.pack(fill='x', pady=(15, 0))
         
-        # Center container for buttons
-        button_container = tk.Frame(action_frame, bg='#ffffff')
-        button_container.pack(expand=True)
+        button_frame = tk.Frame(action_frame, bg='#f8fafc')
+        button_frame.pack()
         
-        # Note: Generate Docs button removed - use main TES-070 generation instead
+        # Export button (future feature)
+        tk.Button(button_frame, text="📄 Export Steps", font=('Segoe UI', 10, 'bold'), 
+                 bg='#3b82f6', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                 cursor='hand2', bd=0,
+                 command=lambda: self.show_popup("Feature", "Export functionality coming soon!", "info")).pack(side='left', padx=(0, 10))
         
-        # Close button (centered)
-        tk.Button(button_container, text="Close", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=20, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack()
+        # Close button
+        tk.Button(button_frame, text="✕ Close", font=('Segoe UI', 10, 'bold'), 
+                 bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                 cursor='hand2', bd=0, command=popup.destroy).pack(side='left')
     
-    def _add_tooltip(self, widget, text):
-        """Add hover tooltip to widget for long text content"""
-        if not text:
-            return
-        
-        def on_enter(event):
-            # Create tooltip
-            tooltip = tk.Toplevel()
-            tooltip.wm_overrideredirect(True)
-            tooltip.configure(bg='#2d3748')
-            
-            # Position tooltip near mouse
-            x = event.x_root + 10
-            y = event.y_root - 25
-            tooltip.geometry(f"+{x}+{y}")
-            
-            # Tooltip content with word wrapping
-            label = tk.Label(tooltip, text=text, font=('Segoe UI', 9), 
-                           bg='#2d3748', fg='#ffffff', padx=8, pady=4, 
-                           wraplength=400, justify='left')
-            label.pack()
-            
-            # Store tooltip reference
-            widget.tooltip = tooltip
-        
-        def on_leave(event):
-            # Destroy tooltip
-            if hasattr(widget, 'tooltip'):
-                try:
-                    widget.tooltip.destroy()
-                    delattr(widget, 'tooltip')
-                except:
-                    pass
-        
-        widget.bind('<Enter>', on_enter)
-        widget.bind('<Leave>', on_leave)
+
     
     def run_all_scenarios(self, current_profile):
         """Run all scenarios for the selected RICE profile with enhanced batch execution"""
