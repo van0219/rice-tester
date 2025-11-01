@@ -47,8 +47,8 @@ class EnhancedPopupManager:
         
         # Position popup properly with proper visibility sequence
         popup.withdraw()
-        popup.update_idletasks()  # Ensure popup is fully rendered
         popup.geometry(f"{width}x{height}+{x}+{y}")
+        popup.update_idletasks()  # Ensure popup is fully rendered
         
         # Configure window behavior
         if modal:
@@ -58,14 +58,10 @@ class EnhancedPopupManager:
             # Non-modal: set transient to parent to stay associated
             popup.transient(parent)
         
-        # Show popup and ensure it appears on top initially
+        # Show popup and ensure it appears centered
         popup.deiconify()
         popup.lift()  # Bring to front
-        popup.attributes('-topmost', True)  # Temporarily on top
         popup.focus_set()
-        
-        # Remove topmost after a brief moment to allow normal window behavior
-        popup.after(100, lambda: popup.attributes('-topmost', False))
         
         # Track popup
         self.active_popups.append(popup)
@@ -106,19 +102,22 @@ class EnhancedPopupManager:
         except:
             pass
         
-        # Center the dialog
+        # Center the dialog with proper sequence
+        dialog.withdraw()
         screen_w = dialog.winfo_screenwidth()
         screen_h = dialog.winfo_screenheight()
         x = (screen_w // 2) - (width // 2)
         y = (screen_h // 2) - (height // 2)
         
         dialog.geometry(f"{width}x{height}+{x}+{y}")
+        dialog.update_idletasks()
         
         # Set window properties
         if modal:
             dialog.transient(parent)
             dialog.grab_set()
         
+        dialog.deiconify()
         dialog.lift()
         dialog.focus_set()
         
