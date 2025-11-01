@@ -129,101 +129,353 @@ class RiceManager:
         self.data_manager.change_scenarios_per_page(new_per_page, self.ui_components)
     
     def add_rice_profile(self):
-        """Add RICE profile dialog"""
-        popup = tk.Toplevel(self.parent)
-        popup.title("Add RICE Profile")
-        popup.configure(bg='#ffffff')
+        """Add RICE profile dialog with modern 2-column layout"""
+        from enhanced_popup_system import create_enhanced_dialog
+        
+        popup = create_enhanced_dialog(None, "Add RICE Item", 650, 420, modal=False)
+        popup.configure(bg='#f8fafc')
         
         try:
             popup.iconbitmap("infor_logo.ico")
         except:
             pass
         
-        # Use CSS-like centering function
-        center_dialog(popup, 500, 350)
+        # Tooltip function
+        def create_tooltip(widget, text):
+            def on_enter(event):
+                tooltip = tk.Toplevel()
+                tooltip.wm_overrideredirect(True)
+                tooltip.configure(bg='#374151')
+                label = tk.Label(tooltip, text=text, bg='#374151', fg='#ffffff', 
+                                font=('Segoe UI', 9), padx=8, pady=4)
+                label.pack()
+                x, y, _, _ = widget.bbox("insert")
+                x += widget.winfo_rootx() + 20
+                y += widget.winfo_rooty() + 20
+                tooltip.geometry(f"+{x}+{y}")
+                widget.tooltip = tooltip
+            def on_leave(event):
+                if hasattr(widget, 'tooltip'):
+                    widget.tooltip.destroy()
+                    del widget.tooltip
+            widget.bind('<Enter>', on_enter)
+            widget.bind('<Leave>', on_leave)
         
-        frame = tk.Frame(popup, bg='#ffffff', padx=20, pady=20)
-        frame.pack(fill="both", expand=True)
+        # Modern card-based layout
+        card_frame = tk.Frame(popup, bg='#ffffff', relief='solid', bd=1)
+        card_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        # RICE ID
-        tk.Label(frame, text="RICE ID:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').grid(row=0, column=0, sticky="w", pady=5)
-        rice_id_entry = tk.Entry(frame, width=30, font=('Segoe UI', 10))
-        rice_id_entry.grid(row=0, column=1, sticky="ew", padx=10, pady=5)
+        # Blue header with title
+        header_frame = tk.Frame(card_frame, bg='#3b82f6', height=50)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
         
-        # Name
-        tk.Label(frame, text="Name:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').grid(row=1, column=0, sticky="w", pady=5)
-        name_entry = tk.Entry(frame, width=30, font=('Segoe UI', 10))
-        name_entry.grid(row=1, column=1, sticky="ew", padx=10, pady=5)
+        tk.Label(header_frame, text="➕ Add RICE Item", font=('Segoe UI', 14, 'bold'), 
+                bg='#3b82f6', fg='#ffffff').pack(expand=True)
         
-        # Project/Client
-        tk.Label(frame, text="Project/Client:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').grid(row=2, column=0, sticky="w", pady=5)
-        client_entry = tk.Entry(frame, width=30, font=('Segoe UI', 10))
-        client_entry.grid(row=2, column=1, sticky="ew", padx=10, pady=5)
+        # Content frame with better spacing
+        content_frame = tk.Frame(card_frame, bg='#ffffff', padx=25, pady=20)
+        content_frame.pack(fill="both", expand=True)
         
-        # Type
-        tk.Label(frame, text="Type:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').grid(row=3, column=0, sticky="w", pady=5)
+        # Compact 2-column layout to reduce vertical space
+        form_container = tk.Frame(content_frame, bg='#ffffff')
+        form_container.pack(fill="both", expand=True)
+        
+        # Configure grid weights for responsive layout
+        form_container.grid_columnconfigure(0, weight=1)
+        form_container.grid_columnconfigure(1, weight=1)
+        
+        # Left Column - Core Information
+        left_column = tk.Frame(form_container, bg='#ffffff')
+        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=5)
+        
+        # RICE ID (required) with tooltip
+        rice_id_frame = tk.Frame(left_column, bg='#ffffff')
+        rice_id_frame.pack(fill="x", pady=(0, 10))
+        rice_id_label = tk.Label(rice_id_frame, text="🆔 RICE ID * ℹ️", font=('Segoe UI', 10, 'bold'), 
+                                bg='#ffffff', fg='#dc2626', cursor='question_arrow')
+        rice_id_label.pack(anchor="w")
+        rice_id_entry = tk.Entry(rice_id_frame, font=('Segoe UI', 10), bg='#f9fafb', 
+                                relief='solid', bd=1, highlightthickness=1, highlightcolor='#3b82f6')
+        rice_id_entry.pack(fill="x", pady=(2, 0))
+        
+        create_tooltip(rice_id_label, "Unique identifier for this RICE item (e.g., INT-001, RPT-002)")
+        
+        # Name (required) with tooltip
+        name_frame = tk.Frame(left_column, bg='#ffffff')
+        name_frame.pack(fill="x", pady=(0, 10))
+        name_label = tk.Label(name_frame, text="📝 Name * ℹ️", font=('Segoe UI', 10, 'bold'), 
+                             bg='#ffffff', fg='#dc2626', cursor='question_arrow')
+        name_label.pack(anchor="w")
+        name_entry = tk.Entry(name_frame, font=('Segoe UI', 10), bg='#f9fafb', 
+                             relief='solid', bd=1, highlightthickness=1, highlightcolor='#3b82f6')
+        name_entry.pack(fill="x", pady=(2, 0))
+        
+        create_tooltip(name_label, "Descriptive name for this RICE item")
+        
+        # Project/Client (auto-populated from user's company) with tooltip
+        client_frame = tk.Frame(left_column, bg='#ffffff')
+        client_frame.pack(fill="x", pady=(0, 10))
+        client_label = tk.Label(client_frame, text="🏢 Project/Client (Auto) ℹ️", font=('Segoe UI', 10, 'bold'), 
+                               bg='#ffffff', fg='#059669', cursor='question_arrow')
+        client_label.pack(anchor="w")
+        client_entry = tk.Entry(client_frame, font=('Segoe UI', 10), bg='#f0f9ff', 
+                               relief='solid', bd=1, highlightthickness=1, highlightcolor='#3b82f6',
+                               state='readonly', readonlybackground='#f0f9ff')
+        
+        # Get user's company from database
+        try:
+            cursor = self.db_manager.conn.cursor()
+            cursor.execute("SELECT company FROM users WHERE id = ?", (self.db_manager.user_id,))
+            user_company = cursor.fetchone()
+            if user_company and user_company[0]:
+                client_entry.configure(state='normal')
+                client_entry.delete(0, tk.END)
+                client_entry.insert(0, user_company[0])
+                client_entry.configure(state='readonly')
+            else:
+                # Fallback if no company found
+                client_entry.configure(state='normal')
+                client_entry.delete(0, tk.END)
+                client_entry.insert(0, 'No Company Set')
+                client_entry.configure(state='readonly')
+        except Exception as e:
+            # Fallback on error
+            client_entry.configure(state='normal')
+            client_entry.delete(0, tk.END)
+            client_entry.insert(0, 'Error Loading Company')
+            client_entry.configure(state='readonly')
+        
+        client_entry.pack(fill="x", pady=(2, 0))
+        
+        create_tooltip(client_label, "Auto-populated from your company profile (set during signup)")
+        
+        # Type (required) with tooltip
+        type_frame = tk.Frame(left_column, bg='#ffffff')
+        type_frame.pack(fill="x", pady=(0, 10))
+        type_label = tk.Label(type_frame, text="🏷️ Type * ℹ️", font=('Segoe UI', 10, 'bold'), 
+                             bg='#ffffff', fg='#dc2626', cursor='question_arrow')
+        type_label.pack(anchor="w")
         type_var = tk.StringVar()
-        type_combo = ttk.Combobox(frame, textvariable=type_var, width=27, font=('Segoe UI', 10), state='readonly')
-        rice_types = [rt[1] for rt in self.db_manager.get_rice_types()]  # Get type names
+        type_combo = ttk.Combobox(type_frame, textvariable=type_var, font=('Segoe UI', 10))
+        rice_types = [rt[1] for rt in self.db_manager.get_rice_types()]
         type_combo['values'] = rice_types
-        type_combo.grid(row=3, column=1, sticky="ew", padx=10, pady=5)
+        type_combo.pack(fill="x", pady=(2, 0))
         
-        # Channel Name (dropdown - optional)
-        tk.Label(frame, text="Channel Name (Optional):", font=('Segoe UI', 10), bg='#ffffff').grid(row=4, column=0, sticky="w", pady=5)
+        create_tooltip(type_label, "Select the RICE item type (Interface, Report, Conversion, Extension)")
+        
+        # Enable search in type dropdown
+        def filter_type_values(event):
+            typed = type_var.get().lower()
+            if typed == '':
+                type_combo['values'] = rice_types
+            else:
+                filtered = [t for t in rice_types if typed in t.lower()]
+                type_combo['values'] = filtered
+        type_combo.bind('<KeyRelease>', filter_type_values)
+        
+        # Right Column - Configuration & Environment
+        right_column = tk.Frame(form_container, bg='#ffffff')
+        right_column.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=5)
+        
+        # Channel Name (optional) with tooltip and refresh
+        channel_frame = tk.Frame(right_column, bg='#ffffff')
+        channel_frame.pack(fill="x", pady=(0, 10))
+        channel_header = tk.Frame(channel_frame, bg='#ffffff')
+        channel_header.pack(fill="x")
+        channel_label = tk.Label(channel_header, text="📡 Channel Name ℹ️", font=('Segoe UI', 10), 
+                                bg='#ffffff', fg='#6b7280', cursor='question_arrow')
+        channel_label.pack(side="left")
+        refresh_channel_btn = tk.Button(channel_header, text="🔄", font=('Segoe UI', 8), 
+                                       bg='#f3f4f6', fg='#6b7280', relief='flat', 
+                                       padx=4, pady=2, cursor='hand2', bd=0)
+        refresh_channel_btn.pack(side="right")
+        
         channel_var = tk.StringVar()
-        channel_combo = ttk.Combobox(frame, textvariable=channel_var, width=27, font=('Segoe UI', 10))
-        channels = [''] + [ch[1] for ch in self.db_manager.get_file_channels()]  # Add empty option
-        channel_combo['values'] = channels
-        channel_combo.grid(row=4, column=1, sticky="ew", padx=10, pady=5)
+        channel_combo = ttk.Combobox(channel_frame, textvariable=channel_var, font=('Segoe UI', 10))
         
-        # SFTP Profile (dropdown - optional)
-        tk.Label(frame, text="SFTP Profile (Optional):", font=('Segoe UI', 10), bg='#ffffff').grid(row=5, column=0, sticky="w", pady=5)
+        def load_channels():
+            channels = [''] + [ch[1] for ch in self.db_manager.get_file_channels()]
+            channel_combo['values'] = channels
+            return channels
+        
+        channels = load_channels()
+        channel_combo.pack(fill="x", pady=(2, 0))
+        
+        create_tooltip(channel_label, "Optional: Select file channel for data transfer")
+        refresh_channel_btn.configure(command=load_channels)
+        
+        # Enable search in channel dropdown
+        def filter_channel_values(event):
+            typed = channel_var.get().lower()
+            if typed == '':
+                channel_combo['values'] = channels
+            else:
+                filtered = [c for c in channels if c and typed in c.lower()]
+                channel_combo['values'] = [''] + filtered
+        channel_combo.bind('<KeyRelease>', filter_channel_values)
+        
+        # SFTP Profile (optional) with tooltip and refresh
+        sftp_frame = tk.Frame(right_column, bg='#ffffff')
+        sftp_frame.pack(fill="x", pady=(0, 10))
+        sftp_header = tk.Frame(sftp_frame, bg='#ffffff')
+        sftp_header.pack(fill="x")
+        sftp_label = tk.Label(sftp_header, text="📁 SFTP Profile ℹ️", font=('Segoe UI', 10), 
+                             bg='#ffffff', fg='#6b7280', cursor='question_arrow')
+        sftp_label.pack(side="left")
+        refresh_sftp_btn = tk.Button(sftp_header, text="🔄", font=('Segoe UI', 8), 
+                                    bg='#f3f4f6', fg='#6b7280', relief='flat', 
+                                    padx=4, pady=2, cursor='hand2', bd=0)
+        refresh_sftp_btn.pack(side="right")
+        
         sftp_var = tk.StringVar()
-        sftp_combo = ttk.Combobox(frame, textvariable=sftp_var, width=27, font=('Segoe UI', 10))
-        sftp_profiles = [''] + [sp[1] for sp in self.db_manager.get_sftp_profiles()]  # Add empty option
-        sftp_combo['values'] = sftp_profiles
-        sftp_combo.grid(row=5, column=1, sticky="ew", padx=10, pady=5)
+        sftp_combo = ttk.Combobox(sftp_frame, textvariable=sftp_var, font=('Segoe UI', 10))
         
-        # Tenant
-        tk.Label(frame, text="Tenant:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').grid(row=6, column=0, sticky="w", pady=5)
-        tenant_entry = tk.Entry(frame, width=30, font=('Segoe UI', 10))
-        tenant_entry.grid(row=6, column=1, sticky="ew", padx=10, pady=5)
-        tenant_entry.insert(0, "TAMICS10_AX1")  # Default value
+        def load_sftp_profiles():
+            sftp_profiles = [''] + [sp[1] for sp in self.db_manager.get_sftp_profiles()]
+            sftp_combo['values'] = sftp_profiles
+            return sftp_profiles
         
-        frame.grid_columnconfigure(1, weight=1)
+        sftp_profiles = load_sftp_profiles()
+        sftp_combo.pack(fill="x", pady=(2, 0))
         
-        # Buttons
-        btn_frame = tk.Frame(frame, bg='#ffffff')
-        btn_frame.grid(row=7, column=0, columnspan=2, pady=20)
+        create_tooltip(sftp_label, "Optional: Select SFTP profile for file transfers")
+        refresh_sftp_btn.configure(command=load_sftp_profiles)
+        
+        # Enable search in SFTP dropdown
+        def filter_sftp_values(event):
+            typed = sftp_var.get().lower()
+            if typed == '':
+                sftp_combo['values'] = sftp_profiles
+            else:
+                filtered = [s for s in sftp_profiles if s and typed in s.lower()]
+                sftp_combo['values'] = [''] + filtered
+        sftp_combo.bind('<KeyRelease>', filter_sftp_values)
+        
+        # Tenant (required) with tooltip and refresh
+        tenant_frame = tk.Frame(right_column, bg='#ffffff')
+        tenant_frame.pack(fill="x", pady=(0, 10))
+        tenant_header = tk.Frame(tenant_frame, bg='#ffffff')
+        tenant_header.pack(fill="x")
+        tenant_label = tk.Label(tenant_header, text="🏗️ Tenant * ℹ️", font=('Segoe UI', 10, 'bold'), 
+                               bg='#ffffff', fg='#dc2626', cursor='question_arrow')
+        tenant_label.pack(side="left")
+        refresh_tenant_btn = tk.Button(tenant_header, text="🔄", font=('Segoe UI', 8), 
+                                      bg='#f3f4f6', fg='#6b7280', relief='flat', 
+                                      padx=4, pady=2, cursor='hand2', bd=0)
+        refresh_tenant_btn.pack(side="right")
+        
+        tenant_var = tk.StringVar()
+        tenant_combo = ttk.Combobox(tenant_frame, textvariable=tenant_var, font=('Segoe UI', 10))
+        
+        def load_tenants():
+            try:
+                tenants = self.db_manager.get_tenants()
+                tenant_list = [f"{t[1]} ({t[2]})" for t in tenants]  # "TENANT_ID (Environment)"
+                if not tenant_list:
+                    tenant_list = ['TAMICS10_AX1 (Sandbox)']  # Default fallback
+                tenant_combo['values'] = tenant_list
+                return tenant_list
+            except:
+                # Fallback if tenant management not set up yet
+                tenant_list = ['TAMICS10_AX1 (Sandbox)', 'PROD (Production)', 'TEST (Test)', 'DEV (Development)']
+                tenant_combo['values'] = tenant_list
+                return tenant_list
+        
+        tenant_list = load_tenants()
+        tenant_combo.set("TAMICS10_AX1 (Sandbox)")  # Default value
+        tenant_combo.pack(fill="x", pady=(2, 0))
+        
+        create_tooltip(tenant_label, "Select tenant from configured list (managed in Other Settings)")
+        refresh_tenant_btn.configure(command=load_tenants)
+        
+        # Enable search in tenant dropdown
+        def filter_tenant_values(event):
+            typed = tenant_var.get().lower()
+            if typed == '':
+                tenant_combo['values'] = tenant_list
+            else:
+                filtered = [t for t in tenant_list if typed in t.lower()]
+                tenant_combo['values'] = filtered
+        tenant_combo.bind('<KeyRelease>', filter_tenant_values)
+        
+        # Modern button frame
+        btn_frame = tk.Frame(content_frame, bg='#ffffff')
+        btn_frame.pack(pady=(10, 0))
+        
+        # Real-time validation function
+        def validate_field(entry, is_required=False):
+            value = entry.get().strip()
+            if is_required and not value:
+                entry.configure(highlightcolor='#ef4444', highlightbackground='#fecaca')
+                return False
+            else:
+                entry.configure(highlightcolor='#10b981', highlightbackground='#d1fae5')
+                return True
+        
+        # Bind validation to required fields (excluding readonly client field)
+        rice_id_entry.bind('<KeyRelease>', lambda e: validate_field(rice_id_entry, True))
+        name_entry.bind('<KeyRelease>', lambda e: validate_field(name_entry, True))
         
         def save_rice_profile():
-            rice_id = rice_id_entry.get().strip()
-            name = name_entry.get().strip()
-            client_name = client_entry.get().strip()
-            profile_type = type_var.get()
-            channel_name = channel_var.get().strip() or None
-            sftp_profile_name = sftp_var.get().strip() or None
-            tenant = tenant_entry.get().strip() or None
+            # Validate all required fields (client is auto-populated, tenant is dropdown)
+            valid_rice_id = validate_field(rice_id_entry, True)
+            valid_name = validate_field(name_entry, True)
+            valid_type = type_var.get().strip() != ''
+            valid_tenant = tenant_var.get().strip() != ''
+            # Client is always valid since it's auto-populated
+            valid_client = True
             
-            if not all([rice_id, name, client_name, profile_type, tenant]):
-                self.show_popup("Error", "Please fill in required fields (RICE ID, Name, Project/Client, Type, Tenant)", "error")
+            if not all([valid_rice_id, valid_name, valid_client, valid_type, valid_tenant]):
+                self.show_popup("Validation Error", "Please fill in all required fields (marked with *)", "error")
                 return
             
             try:
+                rice_id = rice_id_entry.get().strip()
+                name = name_entry.get().strip()
+                # Get client name from readonly field
+                client_entry.configure(state='normal')
+                client_name = client_entry.get().strip()
+                client_entry.configure(state='readonly')
+                profile_type = type_var.get().strip()
+                # Extract tenant ID from dropdown selection (before parentheses)
+                tenant_selection = tenant_var.get().strip()
+                tenant = tenant_selection.split(' (')[0] if ' (' in tenant_selection else tenant_selection
+                channel_name = channel_var.get().strip() or None
+                sftp_profile_name = sftp_var.get().strip() or None
+                
                 self.db_manager.save_rice_profile(rice_id, name, profile_type, client_name, channel_name, sftp_profile_name, tenant)
                 popup.destroy()
                 self.load_rice_profiles()
-                self.show_popup("Success", f"RICE '{rice_id}' for {client_name} saved successfully!", "success")
+                self.show_popup("Success", f"RICE '{rice_id}' created successfully!", "success")
             except Exception as e:
                 self.show_popup("Error", f"Failed to save RICE: {str(e)}", "error")
         
-        tk.Button(btn_frame, text="Save", font=('Segoe UI', 10, 'bold'), bg='#10b981', fg='#ffffff', 
-                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0, highlightthickness=0,
-                 command=save_rice_profile).pack(side="left", padx=(0, 10))
+        # Modern button styling with enhanced hover effects
+        save_btn = tk.Button(btn_frame, text="💾 Save RICE", font=('Segoe UI', 10, 'bold'), 
+                            bg='#3b82f6', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                            cursor='hand2', bd=0, highlightthickness=0, command=save_rice_profile)
+        save_btn.pack(side="left", padx=(0, 15))
         
-        tk.Button(btn_frame, text="Cancel", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0, highlightthickness=0,
-                 command=popup.destroy).pack(side="left")
+        cancel_btn = tk.Button(btn_frame, text="✕ Cancel", font=('Segoe UI', 10, 'bold'), 
+                              bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                              cursor='hand2', bd=0, highlightthickness=0, command=popup.destroy)
+        cancel_btn.pack(side="left")
+        
+        # Add hover effects
+        def on_save_hover(event):
+            save_btn.configure(bg='#2563eb')
+        def on_save_leave(event):
+            save_btn.configure(bg='#3b82f6')
+        def on_cancel_hover(event):
+            cancel_btn.configure(bg='#4b5563')
+        def on_cancel_leave(event):
+            cancel_btn.configure(bg='#6b7280')
+        
+        save_btn.bind('<Enter>', on_save_hover)
+        save_btn.bind('<Leave>', on_save_leave)
+        cancel_btn.bind('<Enter>', on_cancel_hover)
+        cancel_btn.bind('<Leave>', on_cancel_leave)
         
         popup.focus_set()
         rice_id_entry.focus()
@@ -323,7 +575,7 @@ class RiceManager:
         
         # Create history dialog
         from rice_dialogs import create_enhanced_dialog
-        history_popup = create_enhanced_dialog(None, "TES-070 History", 628, 446, modal=False)
+        history_popup = create_enhanced_dialog(None, "TES-070 History", 628, 392, modal=False)
         history_popup.configure(bg='#ffffff')
         
         try:
