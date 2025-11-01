@@ -12,126 +12,345 @@ class ServiceAccountsManager:
         self.show_popup = show_popup_callback
     
     def setup_service_accounts_tab(self, parent):
-        """Service account tab"""
-        frame = tk.Frame(parent, bg='#ffffff', padx=20, pady=20)
+        """Service account tab with modern UI/UX design"""
+        frame = tk.Frame(parent, bg='#f8fafc', padx=20, pady=20)
         frame.pack(fill="both", expand=True)
         
-        # Service Accounts Section with enclosure
-        service_section = tk.Frame(frame, bg='#f8f9fa', relief='solid', bd=1, padx=15, pady=15)
+        # Service Accounts Section with modern card design
+        service_section = tk.Frame(frame, bg='#ffffff', relief='solid', bd=1, 
+                                  highlightbackground='#e5e7eb', highlightthickness=1)
         service_section.pack(fill="x", pady=(0, 20))
         
-        # Header
-        tk.Label(service_section, text="Service Accounts", font=('Segoe UI', 12, 'bold'), bg='#f8f9fa').pack(anchor="w", pady=(0, 10))
+        # Modern header with icon and better styling
+        header_frame = tk.Frame(service_section, bg='#1e40af', height=45)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
         
-        # Headers
-        headers_frame = tk.Frame(service_section, bg='#e5e7eb', height=25)
-        headers_frame.pack(fill="x")
+        tk.Label(header_frame, text="🔑 Service Accounts", font=('Segoe UI', 14, 'bold'), 
+                bg='#1e40af', fg='#ffffff').pack(expand=True, pady=12)
+        
+        # Content container with padding
+        content_container = tk.Frame(service_section, bg='#ffffff', padx=20, pady=15)
+        content_container.pack(fill="both", expand=True)
+        
+        # Professional table headers with icons
+        headers_frame = tk.Frame(content_container, bg='#f8fafc', height=35, relief='solid', bd=1,
+                                highlightbackground='#e5e7eb', highlightthickness=1)
+        headers_frame.pack(fill="x", pady=(0, 5))
         headers_frame.pack_propagate(False)
         
-        tk.Label(headers_frame, text="Name", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=18).place(relx=0, y=5, relwidth=0.3)
-        tk.Label(headers_frame, text="File Path", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=18).place(relx=0.3, y=5, relwidth=0.35)
-        tk.Label(headers_frame, text="Date Added", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=18).place(relx=0.65, y=5, relwidth=0.15)
-        tk.Label(headers_frame, text="Actions", font=('Segoe UI', 10, 'bold'), 
-                bg='#e5e7eb', fg='#374151', anchor='w', padx=18).place(relx=0.8, y=5, relwidth=0.2)
+        tk.Label(headers_frame, text="📝 Name", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0, y=8, relwidth=0.3)
+        tk.Label(headers_frame, text="📁 File Path", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0.3, y=8, relwidth=0.35)
+        tk.Label(headers_frame, text="📅 Date Added", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0.65, y=8, relwidth=0.15)
+        tk.Label(headers_frame, text="⚙️ Actions", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0.8, y=8, relwidth=0.2)
         
-        # Accounts scroll frame
-        self.accounts_scroll_frame = tk.Frame(service_section, bg='#ffffff')
-        self.accounts_scroll_frame.pack(fill="x", pady=(0, 10))
+        # Scrollable accounts container with border
+        accounts_container = tk.Frame(content_container, bg='#ffffff', relief='solid', bd=1,
+                                     highlightbackground='#e5e7eb', highlightthickness=1)
+        accounts_container.pack(fill="x", pady=(0, 15))
         
-        # Buttons
-        btn_frame = tk.Frame(service_section, bg='#f8f9fa')
+        self.accounts_scroll_frame = tk.Frame(accounts_container, bg='#ffffff')
+        self.accounts_scroll_frame.pack(fill="x", padx=1, pady=1)
+        
+        # Action buttons with modern styling
+        btn_frame = tk.Frame(content_container, bg='#ffffff')
         btn_frame.pack(fill="x")
         
-        tk.Button(btn_frame, text="➕ Add Account", font=('Segoe UI', 10, 'bold'), 
-                 bg='#10b981', fg='#ffffff', relief='flat', padx=15, pady=8, 
-                 cursor='hand2', bd=0, command=self._add_service_account).pack(side="left", padx=(0, 10))
+        add_btn = tk.Button(btn_frame, text="➕ Add Account", font=('Segoe UI', 10, 'bold'), 
+                           bg='#059669', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                           cursor='hand2', bd=0, highlightthickness=0, command=self._add_service_account)
+        add_btn.pack(side="left", padx=(0, 10))
         
-        tk.Button(btn_frame, text="🔄 Refresh", font=('Segoe UI', 10, 'bold'), 
-                 bg='#6b7280', fg='#ffffff', relief='flat', padx=15, pady=8, 
-                 cursor='hand2', bd=0, command=self._load_service_accounts).pack(side="left")
+        refresh_btn = tk.Button(btn_frame, text="🔄 Refresh", font=('Segoe UI', 10, 'bold'), 
+                               bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                               cursor='hand2', bd=0, highlightthickness=0, command=self._load_service_accounts)
+        refresh_btn.pack(side="left")
+        
+        # Add hover effects
+        def on_add_enter(e): add_btn.config(bg='#047857')
+        def on_add_leave(e): add_btn.config(bg='#059669')
+        def on_refresh_enter(e): refresh_btn.config(bg='#4b5563')
+        def on_refresh_leave(e): refresh_btn.config(bg='#6b7280')
+        
+        add_btn.bind('<Enter>', on_add_enter)
+        add_btn.bind('<Leave>', on_add_leave)
+        refresh_btn.bind('<Enter>', on_refresh_enter)
+        refresh_btn.bind('<Leave>', on_refresh_leave)
         
         self._load_service_accounts()
         
-        # Miscellaneous section with enclosure
-        misc_section = tk.Frame(frame, bg='#f0f9ff', relief='solid', bd=1, padx=15, pady=15)
-        misc_section.pack(fill="x")
+        # Tenant Management Section with modern card design
+        tenant_section = tk.Frame(frame, bg='#ffffff', relief='solid', bd=1, 
+                                 highlightbackground='#e5e7eb', highlightthickness=1)
+        tenant_section.pack(fill="x", pady=(0, 20))
         
-        tk.Label(misc_section, text="Miscellaneous", font=('Segoe UI', 12, 'bold'), bg='#f0f9ff').pack(anchor="w", pady=(0, 10))
+        # Modern header with icon
+        tenant_header_frame = tk.Frame(tenant_section, bg='#10b981', height=45)
+        tenant_header_frame.pack(fill="x")
+        tenant_header_frame.pack_propagate(False)
         
-        # TES-070 Name Format
-        self.tes070_format_var = tk.BooleanVar()
-        tes070_check = tk.Checkbutton(misc_section, text="Configure TES-070 Name Format", 
-                                     variable=self.tes070_format_var, bg='#f0f9ff', 
-                                     font=('Segoe UI', 10), command=self._toggle_tes070_format)
-        tes070_check.pack(anchor="w", pady=(0, 10))
+        tk.Label(tenant_header_frame, text="🏗️ Tenant Management", font=('Segoe UI', 14, 'bold'), 
+                bg='#10b981', fg='#ffffff').pack(expand=True, pady=12)
         
-        # TES-070 format configuration (always visible)
-        self.tes070_config_frame = tk.Frame(misc_section, bg='#f0f9ff')
-        self.tes070_config_frame.pack(fill="x", padx=(20, 0), pady=(0, 10))
+        # Tenant content container with padding
+        tenant_content_container = tk.Frame(tenant_section, bg='#ffffff', padx=20, pady=15)
+        tenant_content_container.pack(fill="both", expand=True)
         
-        # Template string approach
-        tk.Label(self.tes070_config_frame, text="Template (use placeholders):", font=('Segoe UI', 10, 'bold'), bg='#f0f9ff').pack(anchor="w", pady=(0, 5))
+        # Professional tenant table headers with icons
+        tenant_headers_frame = tk.Frame(tenant_content_container, bg='#f8fafc', height=35, relief='solid', bd=1,
+                                       highlightbackground='#e5e7eb', highlightthickness=1)
+        tenant_headers_frame.pack(fill="x", pady=(0, 5))
+        tenant_headers_frame.pack_propagate(False)
         
-        self.template_var = tk.StringVar()
-        # Load current template from database
-        try:
-            current_template = self.db_manager.get_tes070_template()
-            self.template_var.set(current_template)
-        except:
-            self.template_var.set("TES-070_{rice_id}_{date}_v{version}.docx")
+        tk.Label(tenant_headers_frame, text="🆔 Tenant ID", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0, y=8, relwidth=0.25)
+        tk.Label(tenant_headers_frame, text="🌍 Environment", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0.25, y=8, relwidth=0.25)
+        tk.Label(tenant_headers_frame, text="📝 Description", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0.5, y=8, relwidth=0.3)
+        tk.Label(tenant_headers_frame, text="⚙️ Actions", font=('Segoe UI', 10, 'bold'), 
+                bg='#f8fafc', fg='#374151', anchor='w', padx=15).place(relx=0.8, y=8, relwidth=0.2)
         
-        self.template_entry = tk.Entry(self.tes070_config_frame, textvariable=self.template_var, width=60, font=('Segoe UI', 10),
-                                      state='readonly', bg='#f3f4f6', fg='#6b7280')
-        self.template_entry.pack(fill="x", pady=(0, 10))
+        # Scrollable tenants container with border
+        tenants_container = tk.Frame(tenant_content_container, bg='#ffffff', relief='solid', bd=1,
+                                    highlightbackground='#e5e7eb', highlightthickness=1)
+        tenants_container.pack(fill="x", pady=(0, 15))
         
-        # Available placeholders help
-        self.help_frame = tk.Frame(self.tes070_config_frame, bg='#e0f2fe', relief='solid', bd=1)
-        self.help_frame.pack(fill="x", pady=(0, 10))
+        self.tenants_scroll_frame = tk.Frame(tenants_container, bg='#ffffff')
+        self.tenants_scroll_frame.pack(fill="x", padx=1, pady=1)
         
-        tk.Label(self.help_frame, text="Available placeholders:", font=('Segoe UI', 9, 'bold'), bg='#e0f2fe').pack(anchor="w", padx=10, pady=(5, 0))
-        placeholders = "{rice_id} {name} {client_name} {tenant} {date} {version}"
-        tk.Label(self.help_frame, text=placeholders, font=('Segoe UI', 9), bg='#e0f2fe', fg='#0369a1').pack(anchor="w", padx=10, pady=(0, 5))
+        # Tenant action buttons with modern styling
+        tenant_btn_frame = tk.Frame(tenant_content_container, bg='#ffffff')
+        tenant_btn_frame.pack(fill="x")
         
-        # Save button
-        self.save_btn = tk.Button(self.tes070_config_frame, text="💾 Save Template", font=('Segoe UI', 10, 'bold'), 
-                                 bg='#10b981', fg='#ffffff', relief='flat', padx=15, pady=8, 
-                                 cursor='hand2', bd=0, command=self._save_tes070_template)
-        self.save_btn.pack(anchor="w", pady=(0, 10))
+        add_tenant_btn = tk.Button(tenant_btn_frame, text="➕ Add Tenant", font=('Segoe UI', 10, 'bold'), 
+                                  bg='#059669', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                                  cursor='hand2', bd=0, highlightthickness=0, command=self._add_tenant)
+        add_tenant_btn.pack(side="left", padx=(0, 10))
+        
+        refresh_tenant_btn = tk.Button(tenant_btn_frame, text="🔄 Refresh", font=('Segoe UI', 10, 'bold'), 
+                                      bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                                      cursor='hand2', bd=0, highlightthickness=0, command=self._load_tenants)
+        refresh_tenant_btn.pack(side="left")
+        
+        # Add hover effects for tenant buttons
+        def on_add_tenant_enter(e): add_tenant_btn.config(bg='#047857')
+        def on_add_tenant_leave(e): add_tenant_btn.config(bg='#059669')
+        def on_refresh_tenant_enter(e): refresh_tenant_btn.config(bg='#4b5563')
+        def on_refresh_tenant_leave(e): refresh_tenant_btn.config(bg='#6b7280')
+        
+        add_tenant_btn.bind('<Enter>', on_add_tenant_enter)
+        add_tenant_btn.bind('<Leave>', on_add_tenant_leave)
+        refresh_tenant_btn.bind('<Enter>', on_refresh_tenant_enter)
+        refresh_tenant_btn.bind('<Leave>', on_refresh_tenant_leave)
+        
+        self._load_tenants()
+        
+        # Removed Miscellaneous section - TES-070 formatting moved to Settings menu
         
 
+    # TES-070 template methods removed - moved to Settings menu
     
-    def _toggle_tes070_format(self):
-        """Toggle TES-070 template field editability"""
-        if self.tes070_format_var.get():
-            # Checkbox checked - make editable
-            self.template_entry.config(state='normal', bg='#ffffff', fg='#000000')
-        else:
-            # Checkbox unchecked - make readonly
-            self.template_entry.config(state='readonly', bg='#f3f4f6', fg='#6b7280')
-    
-    def _save_tes070_template(self):
-        """Save TES-070 name format template"""
-        template = self.template_var.get().strip()
+    def _load_tenants(self):
+        """Load tenants from database"""
+        for widget in self.tenants_scroll_frame.winfo_children():
+            widget.destroy()
         
-        if not template:
-            self.show_popup("Error", "Please enter a template format", "error")
-            return
+        tenants = self.db_manager.get_tenants()
+        
+        for i, tenant in enumerate(tenants):
+            tenant_id, tenant_name, environment, description = tenant
+            bg_color = '#ffffff' if i % 2 == 0 else '#f9fafb'
+            
+            row_frame = tk.Frame(self.tenants_scroll_frame, bg=bg_color, height=35)
+            row_frame.pack(fill='x')
+            row_frame.pack_propagate(False)
+            
+            tk.Label(row_frame, text=tenant_name, font=('Segoe UI', 9), 
+                    bg=bg_color, fg='#374151', anchor='w', padx=15).place(relx=0, y=8, relwidth=0.25)
+            tk.Label(row_frame, text=environment, font=('Segoe UI', 9), 
+                    bg=bg_color, fg='#6b7280', anchor='w', padx=15).place(relx=0.25, y=8, relwidth=0.25)
+            tk.Label(row_frame, text=description or 'No description', font=('Segoe UI', 9), 
+                    bg=bg_color, fg='#6b7280', anchor='w', padx=15).place(relx=0.5, y=8, relwidth=0.3)
+            
+            actions_frame = tk.Frame(row_frame, bg=bg_color)
+            actions_frame.place(relx=0.8, y=5, relwidth=0.2, height=25)
+            
+            tk.Button(actions_frame, text="✏️ Edit", font=('Segoe UI', 8), 
+                     bg='#3b82f6', fg='#ffffff', relief='flat', padx=6, pady=3, 
+                     cursor='hand2', bd=0, command=lambda tid=tenant_id: self._edit_tenant(tid)).pack(side='left', padx=(0, 3))
+            tk.Button(actions_frame, text="🗑️ Delete", font=('Segoe UI', 8), 
+                     bg='#ef4444', fg='#ffffff', relief='flat', padx=6, pady=3, 
+                     cursor='hand2', bd=0, command=lambda tid=tenant_id: self._delete_tenant(tid)).pack(side='left')
+    
+    def _add_tenant(self):
+        """Add new tenant dialog"""
+        self._tenant_dialog("Add Tenant", None)
+    
+    def _edit_tenant(self, tenant_id):
+        """Edit existing tenant dialog"""
+        self._tenant_dialog("Edit Tenant", tenant_id)
+    
+    def _tenant_dialog(self, title, tenant_id=None):
+        """Tenant add/edit dialog"""
+        popup = tk.Toplevel(self.root)
+        popup.title(title)
+        center_dialog(popup, 450, 386)
+        popup.configure(bg='#f8fafc')
         
         try:
-            # Save to database
-            self.db_manager.save_tes070_template(template)
+            popup.iconbitmap("infor_logo.ico")
+        except:
+            pass
+        
+        # Card layout
+        card_frame = tk.Frame(popup, bg='#ffffff', relief='solid', bd=1)
+        card_frame.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        # Header
+        header_frame = tk.Frame(card_frame, bg='#059669', height=50)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text=f"🏗️ {title}", font=('Segoe UI', 14, 'bold'), 
+                bg='#059669', fg='#ffffff').pack(expand=True)
+        
+        # Content
+        content_frame = tk.Frame(card_frame, bg='#ffffff', padx=25, pady=20)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Tenant ID
+        tk.Label(content_frame, text="🆔 Tenant ID *", font=('Segoe UI', 10, 'bold'), 
+                bg='#ffffff', fg='#dc2626').pack(anchor="w", pady=(0, 5))
+        tenant_name_entry = tk.Entry(content_frame, font=('Segoe UI', 10), bg='#f9fafb', 
+                                    relief='solid', bd=1, highlightthickness=1, highlightcolor='#059669')
+        tenant_name_entry.pack(fill="x", pady=(0, 15))
+        
+        # Environment
+        tk.Label(content_frame, text="🌍 Environment *", font=('Segoe UI', 10, 'bold'), 
+                bg='#ffffff', fg='#dc2626').pack(anchor="w", pady=(0, 5))
+        env_var = tk.StringVar()
+        env_combo = ttk.Combobox(content_frame, textvariable=env_var, font=('Segoe UI', 10))
+        env_combo['values'] = ['Production', 'Test', 'Development', 'Training', 'Sandbox', 'Demo', 'Preprod', 'Pristine', 'UAT', 'Staging', 'QA', 'Integration']
+        env_combo.pack(fill="x", pady=(0, 15))
+        
+        # Description
+        tk.Label(content_frame, text="📝 Description", font=('Segoe UI', 10), 
+                bg='#ffffff', fg='#6b7280').pack(anchor="w", pady=(0, 5))
+        desc_entry = tk.Entry(content_frame, font=('Segoe UI', 10), bg='#f9fafb', 
+                             relief='solid', bd=1, highlightthickness=1, highlightcolor='#059669')
+        desc_entry.pack(fill="x", pady=(0, 20))
+        
+        # Load existing data if editing
+        if tenant_id:
+            try:
+                tenant_data = self.db_manager.get_tenant_by_id(tenant_id)
+                if tenant_data:
+                    _, tenant_name, environment, description = tenant_data
+                    tenant_name_entry.insert(0, tenant_name)
+                    env_var.set(environment)
+                    desc_entry.insert(0, description or '')
+            except Exception as e:
+                self.show_popup("Error", f"Failed to load tenant data: {str(e)}", "error")
+        
+        # Buttons
+        btn_frame = tk.Frame(content_frame, bg='#ffffff')
+        btn_frame.pack()
+        
+        def save_tenant():
+            tenant_name = tenant_name_entry.get().strip()
+            environment = env_var.get().strip()
+            description = desc_entry.get().strip()
             
-            # Reset checkbox and make field readonly
-            self.tes070_format_var.set(False)
-            self.template_entry.config(state='readonly', bg='#f3f4f6', fg='#6b7280')
+            if not all([tenant_name, environment]):
+                self.show_popup("Error", "Please fill in required fields (Tenant ID, Environment)", "error")
+                return
             
-            self.show_popup("Success", "TES-070 name format template saved successfully!", "success")
+            try:
+                if tenant_id:
+                    # Update existing
+                    self.db_manager.update_tenant(tenant_id, tenant_name, environment, description)
+                    action = "updated"
+                else:
+                    # Add new
+                    self.db_manager.add_tenant(tenant_name, environment, description)
+                    action = "added"
+                
+                popup.destroy()
+                self._load_tenants()
+                self.show_popup("Success", f"Tenant '{tenant_name}' {action} successfully!", "success")
+                
+            except Exception as e:
+                self.show_popup("Error", f"Failed to save tenant: {str(e)}", "error")
+        
+        save_btn = tk.Button(btn_frame, text="💾 Save", font=('Segoe UI', 10, 'bold'), 
+                            bg='#059669', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                            cursor='hand2', bd=0, highlightthickness=0, command=save_tenant)
+        save_btn.pack(side="left", padx=(0, 15))
+        
+        cancel_btn = tk.Button(btn_frame, text="✕ Cancel", font=('Segoe UI', 10, 'bold'), 
+                              bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                              cursor='hand2', bd=0, highlightthickness=0, command=popup.destroy)
+        cancel_btn.pack(side="left")
+        
+        tenant_name_entry.focus()
+    
+    def _delete_tenant(self, tenant_id):
+        """Delete tenant with confirmation"""
+        try:
+            tenant_data = self.db_manager.get_tenant_by_id(tenant_id)
+            if not tenant_data:
+                self.show_popup("Error", "Tenant not found", "error")
+                return
             
+            tenant_name = tenant_data[1]
+            
+            confirm_popup = tk.Toplevel(self.root)
+            confirm_popup.title("Confirm Delete")
+            center_dialog(confirm_popup, 400, 250)
+            confirm_popup.configure(bg='#ffffff')
+            
+            try:
+                confirm_popup.iconbitmap("infor_logo.ico")
+            except:
+                pass
+            
+            header_frame = tk.Frame(confirm_popup, bg='#ef4444', height=50)
+            header_frame.pack(fill="x")
+            header_frame.pack_propagate(False)
+            
+            tk.Label(header_frame, text="🗑️ Delete Tenant", font=('Segoe UI', 14, 'bold'), 
+                    bg='#ef4444', fg='#ffffff').pack(expand=True)
+            
+            content_frame = tk.Frame(confirm_popup, bg='#ffffff', padx=20, pady=20)
+            content_frame.pack(fill="both", expand=True)
+            
+            message = f"Delete tenant '{tenant_name}'?\n\nThis action cannot be undone."
+            tk.Label(content_frame, text=message, font=('Segoe UI', 10), bg='#ffffff', justify="center").pack(pady=(0, 20))
+            
+            btn_frame = tk.Frame(content_frame, bg='#ffffff')
+            btn_frame.pack()
+            
+            def confirm_delete():
+                try:
+                    self.db_manager.delete_tenant(tenant_id)
+                    confirm_popup.destroy()
+                    self._load_tenants()
+                    self.show_popup("Success", f"Tenant '{tenant_name}' deleted successfully!", "success")
+                except Exception as e:
+                    self.show_popup("Error", f"Failed to delete tenant: {str(e)}", "error")
+            
+            tk.Button(btn_frame, text="Yes, Delete", font=('Segoe UI', 10, 'bold'), bg='#ef4444', fg='#ffffff', 
+                     relief='flat', padx=15, pady=6, cursor='hand2', bd=0, command=confirm_delete).pack(side="left", padx=(0, 10))
+            tk.Button(btn_frame, text="Cancel", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
+                     relief='flat', padx=15, pady=6, cursor='hand2', bd=0, command=confirm_popup.destroy).pack(side="left")
+        
         except Exception as e:
-            self.show_popup("Error", f"Failed to save template: {str(e)}", "error")
+            self.show_popup("Error", f"Failed to delete tenant: {str(e)}", "error")
     
 
     
@@ -151,47 +370,72 @@ class ServiceAccountsManager:
             row_frame.pack_propagate(False)
             
             tk.Label(row_frame, text=name, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w', padx=18).place(relx=0, y=8, relwidth=0.3)
+                    bg=bg_color, fg='#374151', anchor='w', padx=15).place(relx=0, y=8, relwidth=0.3)
             tk.Label(row_frame, text=file_path, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w', padx=18).place(relx=0.3, y=8, relwidth=0.35)
+                    bg=bg_color, fg='#6b7280', anchor='w', padx=15).place(relx=0.3, y=8, relwidth=0.35)
             tk.Label(row_frame, text=date_added, font=('Segoe UI', 9), 
-                    bg=bg_color, fg='#374151', anchor='w', padx=18).place(relx=0.65, y=8, relwidth=0.15)
+                    bg=bg_color, fg='#6b7280', anchor='w', padx=15).place(relx=0.65, y=8, relwidth=0.15)
             
             actions_frame = tk.Frame(row_frame, bg=bg_color)
             actions_frame.place(relx=0.8, y=5, relwidth=0.2, height=25)
             
-            tk.Button(actions_frame, text="Download", font=('Segoe UI', 8), 
-                     bg='#3b82f6', fg='#ffffff', relief='flat', padx=4, pady=2, 
-                     cursor='hand2', bd=0, command=lambda aid=account_id: self._download_account(aid)).pack(side='left', padx=(0, 2))
-            tk.Button(actions_frame, text="Delete", font=('Segoe UI', 8), 
-                     bg='#ef4444', fg='#ffffff', relief='flat', padx=4, pady=2, 
+            tk.Button(actions_frame, text="📥 Download", font=('Segoe UI', 8), 
+                     bg='#3b82f6', fg='#ffffff', relief='flat', padx=6, pady=3, 
+                     cursor='hand2', bd=0, command=lambda aid=account_id: self._download_account(aid)).pack(side='left', padx=(0, 3))
+            tk.Button(actions_frame, text="🗑️ Delete", font=('Segoe UI', 8), 
+                     bg='#ef4444', fg='#ffffff', relief='flat', padx=6, pady=3, 
                      cursor='hand2', bd=0, command=lambda aid=account_id: self._delete_account(aid)).pack(side='left')
     
     def _add_service_account(self):
-        """Add service account dialog"""
+        """Add service account dialog with modern UI/UX"""
         from tkinter import filedialog
         from datetime import datetime
         import os
         
         popup = tk.Toplevel(self.root)
         popup.title("Add Service Account")
-        center_dialog(popup, 500, 300)
-        popup.configure(bg='#ffffff')
+        center_dialog(popup, 500, 350)
+        popup.configure(bg='#f8fafc')
         
-        frame = tk.Frame(popup, bg='#ffffff', padx=20, pady=20)
-        frame.pack(fill="both", expand=True)
+        try:
+            popup.iconbitmap("infor_logo.ico")
+        except:
+            pass
         
-        tk.Label(frame, text="Account Name:", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 5))
-        name_entry = tk.Entry(frame, width=50, font=('Segoe UI', 10))
-        name_entry.pack(fill="x", pady=(0, 10))
+        # Card layout
+        card_frame = tk.Frame(popup, bg='#ffffff', relief='solid', bd=1)
+        card_frame.pack(fill="both", expand=True, padx=15, pady=15)
         
-        tk.Label(frame, text="Service Account File (.ionapi):", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor="w", pady=(0, 5))
+        # Header
+        header_frame = tk.Frame(card_frame, bg='#1e40af', height=50)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
         
-        file_frame = tk.Frame(frame, bg='#ffffff')
+        tk.Label(header_frame, text="🔑 Add Service Account", font=('Segoe UI', 14, 'bold'), 
+                bg='#1e40af', fg='#ffffff').pack(expand=True)
+        
+        # Content
+        content_frame = tk.Frame(card_frame, bg='#ffffff', padx=25, pady=20)
+        content_frame.pack(fill="both", expand=True)
+        
+        # Account Name
+        tk.Label(content_frame, text="📝 Account Name *", font=('Segoe UI', 10, 'bold'), 
+                bg='#ffffff', fg='#dc2626').pack(anchor="w", pady=(0, 5))
+        name_entry = tk.Entry(content_frame, font=('Segoe UI', 10), bg='#f9fafb', 
+                             relief='solid', bd=1, highlightthickness=1, highlightcolor='#1e40af')
+        name_entry.pack(fill="x", pady=(0, 15))
+        
+        # Service Account File
+        tk.Label(content_frame, text="📁 Service Account File (.ionapi) *", font=('Segoe UI', 10, 'bold'), 
+                bg='#ffffff', fg='#dc2626').pack(anchor="w", pady=(0, 5))
+        
+        file_frame = tk.Frame(content_frame, bg='#ffffff')
         file_frame.pack(fill="x", pady=(0, 20))
         
         file_path_var = tk.StringVar()
-        file_entry = tk.Entry(file_frame, textvariable=file_path_var, width=40, font=('Segoe UI', 10), state='readonly')
+        file_entry = tk.Entry(file_frame, textvariable=file_path_var, font=('Segoe UI', 10), 
+                             bg='#f9fafb', relief='solid', bd=1, highlightthickness=1, 
+                             highlightcolor='#1e40af', state='readonly')
         file_entry.pack(side='left', fill='x', expand=True, padx=(0, 10))
         
         def browse_file():
@@ -202,10 +446,19 @@ class ServiceAccountsManager:
             if file_path:
                 file_path_var.set(file_path)
         
-        tk.Button(file_frame, text="Browse", font=('Segoe UI', 9), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=10, pady=4, cursor='hand2', bd=0, command=browse_file).pack(side='right')
+        browse_btn = tk.Button(file_frame, text="📂 Browse", font=('Segoe UI', 9, 'bold'), 
+                              bg='#6b7280', fg='#ffffff', relief='flat', padx=12, pady=6, 
+                              cursor='hand2', bd=0, highlightthickness=0, command=browse_file)
+        browse_btn.pack(side='right')
         
-        btn_frame = tk.Frame(frame, bg='#ffffff')
+        # Add hover effect for browse button
+        def on_browse_enter(e): browse_btn.config(bg='#4b5563')
+        def on_browse_leave(e): browse_btn.config(bg='#6b7280')
+        browse_btn.bind('<Enter>', on_browse_enter)
+        browse_btn.bind('<Leave>', on_browse_leave)
+        
+        # Buttons
+        btn_frame = tk.Frame(content_frame, bg='#ffffff')
         btn_frame.pack()
         
         def save_account():
@@ -213,7 +466,7 @@ class ServiceAccountsManager:
             file_path = file_path_var.get().strip()
             
             if not all([name, file_path]):
-                self.show_popup("Error", "Please fill in all fields", "error")
+                self.show_popup("Error", "Please fill in required fields (Account Name, Service Account File)", "error")
                 return
             
             try:
@@ -225,10 +478,26 @@ class ServiceAccountsManager:
             except Exception as e:
                 self.show_popup("Error", f"Failed to add service account: {str(e)}", "error")
         
-        tk.Button(btn_frame, text="Save", font=('Segoe UI', 10, 'bold'), bg='#10b981', fg='#ffffff', 
-                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0, command=save_account).pack(side="left", padx=(0, 10))
-        tk.Button(btn_frame, text="Cancel", font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='#ffffff', 
-                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0, command=popup.destroy).pack(side="left")
+        save_btn = tk.Button(btn_frame, text="💾 Save", font=('Segoe UI', 10, 'bold'), 
+                            bg='#1e40af', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                            cursor='hand2', bd=0, highlightthickness=0, command=save_account)
+        save_btn.pack(side="left", padx=(0, 15))
+        
+        cancel_btn = tk.Button(btn_frame, text="✕ Cancel", font=('Segoe UI', 10, 'bold'), 
+                              bg='#6b7280', fg='#ffffff', relief='flat', padx=20, pady=10, 
+                              cursor='hand2', bd=0, highlightthickness=0, command=popup.destroy)
+        cancel_btn.pack(side="left")
+        
+        # Add hover effects
+        def on_save_enter(e): save_btn.config(bg='#1d4ed8')
+        def on_save_leave(e): save_btn.config(bg='#1e40af')
+        def on_cancel_enter(e): cancel_btn.config(bg='#4b5563')
+        def on_cancel_leave(e): cancel_btn.config(bg='#6b7280')
+        
+        save_btn.bind('<Enter>', on_save_enter)
+        save_btn.bind('<Leave>', on_save_leave)
+        cancel_btn.bind('<Enter>', on_cancel_enter)
+        cancel_btn.bind('<Leave>', on_cancel_leave)
         
         name_entry.focus()
     
@@ -284,6 +553,11 @@ class ServiceAccountsManager:
         confirm_popup.title("Confirm Delete")
         center_dialog(confirm_popup, 400, 250)
         confirm_popup.configure(bg='#ffffff')
+        
+        try:
+            confirm_popup.iconbitmap("infor_logo.ico")
+        except:
+            pass
         
         header_frame = tk.Frame(confirm_popup, bg='#ef4444', height=50)
         header_frame.pack(fill="x")
