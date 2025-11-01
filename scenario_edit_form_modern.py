@@ -68,8 +68,8 @@ class ModernScenarioEditForm:
             
             self._create_steps_management_panel(right_panel, scenario_id, current_profile, scenario_number)
             
-            # Bottom action bar
-            action_frame = tk.Frame(content_frame, bg='#f8fafc', height=60)
+            # Bottom action bar with increased height for button visibility
+            action_frame = tk.Frame(content_frame, bg='#f8fafc', height=100)
             action_frame.pack(fill='x', pady=(20, 0))
             action_frame.pack_propagate(False)
             
@@ -197,7 +197,13 @@ class ModernScenarioEditForm:
         tk.Button(btn_container, text="📥 Import",
                  font=('Segoe UI', 9, 'bold'), bg='#059669', fg='white',
                  relief='flat', padx=10, pady=4, cursor='hand2', bd=0,
-                 command=self._show_import_dialog).pack(side='left')
+                 command=self._show_import_dialog).pack(side='left', padx=(0, 5))
+        
+        # Save button
+        tk.Button(btn_container, text="💾 Save",
+                 font=('Segoe UI', 9, 'bold'), bg='#047857', fg='white',
+                 relief='flat', padx=15, pady=4, cursor='hand2', bd=0,
+                 command=lambda: self._save_changes(self.dialog, self.scenario_id, self.current_profile, self.scenario_number, self.refresh_callback)).pack(side='left')
         
         # Content area
         content = tk.Frame(parent, bg='white', padx=15, pady=15)
@@ -219,6 +225,11 @@ class ModernScenarioEditForm:
         # Step management buttons
         mgmt_frame = tk.Frame(content, bg='white')
         mgmt_frame.pack(fill='x')
+        
+        tk.Button(mgmt_frame, text="📋 Add Multiple", 
+                 font=('Segoe UI', 9, 'bold'), bg='#059669', fg='white',
+                 relief='flat', padx=10, pady=6, cursor='hand2', bd=0,
+                 command=self._add_steps_from_groups).pack(side='left', padx=(0, 5))
         
         tk.Button(mgmt_frame, text="✏️ Edit Value", 
                  font=('Segoe UI', 9, 'bold'), bg='#3b82f6', fg='white',
@@ -252,21 +263,26 @@ class ModernScenarioEditForm:
     
     def _create_action_buttons(self, parent, dialog, scenario_id, current_profile, scenario_number, refresh_callback):
         """Create modern action buttons"""
-        # Right-aligned buttons
+        # Center the button container
         btn_container = tk.Frame(parent, bg='#f8fafc')
-        btn_container.pack(side='right', pady=15)
+        btn_container.pack(expand=True, pady=15)
         
-        cancel_btn = tk.Button(btn_container, text="Cancel",
-                              font=('Segoe UI', 11, 'bold'), bg='#6b7280', fg='white',
-                              relief='flat', padx=20, pady=10, cursor='hand2', bd=0,
-                              command=dialog.destroy)
-        cancel_btn.pack(side='right', padx=(10, 0))
+        # Button frame for proper alignment
+        button_frame = tk.Frame(btn_container, bg='#f8fafc')
+        button_frame.pack()
         
-        save_btn = tk.Button(btn_container, text="💾 Save Changes",
+        save_btn = tk.Button(button_frame, text="💾 Save Changes",
                             font=('Segoe UI', 11, 'bold'), bg='#10b981', fg='white',
-                            relief='flat', padx=20, pady=10, cursor='hand2', bd=0,
+                            relief='flat', padx=25, pady=12, cursor='hand2', bd=0,
+                            highlightthickness=0,
                             command=lambda: self._save_changes(dialog, scenario_id, current_profile, scenario_number, refresh_callback))
-        save_btn.pack(side='right')
+        save_btn.pack(side='left', padx=(0, 10))
+        
+        cancel_btn = tk.Button(button_frame, text="❌ Cancel",
+                              font=('Segoe UI', 11, 'bold'), bg='#6b7280', fg='white',
+                              relief='flat', padx=25, pady=12, cursor='hand2', bd=0,
+                              highlightthickness=0, command=dialog.destroy)
+        cancel_btn.pack(side='left')
         
         # Store references
         self.dialog = dialog
@@ -570,55 +586,75 @@ class ModernScenarioEditForm:
             
             # Available steps
             tk.Label(content, text="Available Steps:", 
-                    font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w', pady=(0, 5))
+                    font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w', pady=(0, 2))
             
-            steps_listbox = tk.Listbox(content, font=('Segoe UI', 9), selectmode=tk.MULTIPLE, height=12)
-            steps_scroll = ttk.Scrollbar(content, orient='vertical', command=steps_listbox.yview)
-            steps_listbox.configure(yscrollcommand=steps_scroll.set)
+            tk.Label(content, text="💡 Tip: Hold Ctrl+Click for multiple selection, Shift+Click for range selection", 
+                    font=('Segoe UI', 8), bg='white', fg='#6b7280').pack(anchor='w', pady=(0, 5))
             
             listbox_frame = tk.Frame(content, bg='white')
             listbox_frame.pack(fill='both', expand=True, pady=(0, 20))
             
-            steps_listbox.pack(side='left', fill='both', expand=True, in_=listbox_frame)
+            steps_tree = ttk.Treeview(listbox_frame, columns=('type',), show='tree headings', height=12, selectmode='extended')
+            steps_tree.heading('#0', text='Step Name')
+            steps_tree.heading('type', text='Type')
+            steps_tree.column('#0', width=300)
+            steps_tree.column('type', width=150)
+            
+            steps_scroll = ttk.Scrollbar(listbox_frame, orient='vertical', command=steps_tree.yview)
+            steps_tree.configure(yscrollcommand=steps_scroll.set)
+            
+            steps_tree.pack(side='left', fill='both', expand=True, in_=listbox_frame)
             steps_scroll.pack(side='right', fill='y', in_=listbox_frame)
             
-            # Load groups
-            groups = self.db_manager.get_test_step_groups()
+            # Load groups (excluding Login group)
+            all_groups = self.db_manager.get_test_step_groups()
+            groups = [group for group in all_groups if group[1].lower() != 'login']
             if groups:
                 group_options = [f"{group[1]} ({group[3]} steps)" for group in groups]
                 group_combo['values'] = group_options
                 if group_options:
                     group_combo.current(0)  # Select first group by default
-                    load_group_steps()  # Load steps for first group
             else:
                 group_combo['values'] = ["No test groups available"]
-                steps_listbox.insert(tk.END, "No test step groups found. Create groups in Test Step Groups section first.")
+                steps_tree.insert('', 'end', text="No test step groups found. Create groups in Test Step Groups section first.", values=("",))
             
             def load_group_steps(event=None):
-                if not group_var.get():
+                if not groups:
+                    for item in steps_tree.get_children():
+                        steps_tree.delete(item)
+                    steps_tree.insert('', 'end', text="No test groups available", values=("",))
                     return
                 try:
                     group_index = group_combo.current()
-                    if group_index >= 0 and group_index < len(groups):
+                    if 0 <= group_index < len(groups):
                         group_id = groups[group_index][0]
                         steps = self.db_manager.get_test_steps_by_group(group_id)
-                        steps_listbox.delete(0, tk.END)
+                        for item in steps_tree.get_children():
+                            steps_tree.delete(item)
                         if steps:
-                            for step in steps:
-                                display_text = f"{step[1]} ({step[2]})"
-                                steps_listbox.insert(tk.END, display_text)
+                            for i, step in enumerate(steps):
+                                steps_tree.insert('', 'end', iid=str(i), text=step[1], values=(step[2],))
                         else:
-                            steps_listbox.insert(tk.END, "No steps found in this group")
+                            steps_tree.insert('', 'end', text="No steps found in this group", values=("",))
+                    else:
+                        for item in steps_tree.get_children():
+                            steps_tree.delete(item)
+                        steps_tree.insert('', 'end', text="Invalid group selection", values=("",))
                 except Exception as e:
                     print(f"Error loading group steps: {e}")
-                    steps_listbox.delete(0, tk.END)
-                    steps_listbox.insert(tk.END, f"Error loading steps: {str(e)}")
+                    for item in steps_tree.get_children():
+                        steps_tree.delete(item)
+                    steps_tree.insert('', 'end', text=f"Error loading steps: {str(e)}", values=("",))
             
             group_combo.bind('<<ComboboxSelected>>', load_group_steps)
             
+            # Load initial steps with delay to ensure widgets are ready
+            if groups:
+                step_dialog.after_idle(load_group_steps)
+            
             # Store references for the add function
             step_dialog.groups = groups
-            step_dialog.steps_listbox = steps_listbox
+            step_dialog.steps_tree = steps_tree
             step_dialog.group_combo = group_combo
             
             # Buttons
@@ -626,7 +662,7 @@ class ModernScenarioEditForm:
             btn_frame.pack(fill='x')
             
             def add_selected_steps():
-                selection = steps_listbox.curselection()
+                selection = steps_tree.selection()
                 if not selection or not group_var.get() or not groups:
                     self.popup_manager.show_error("Error", "Please select steps to add", parent=step_dialog)
                     return
@@ -645,20 +681,24 @@ class ModernScenarioEditForm:
                         return
                     
                     added_count = 0
-                    for index in selection:
-                        if index < len(steps):
-                            step_data = steps[index]
-                            step_id, name, step_type, target, description = step_data
-                            
-                            self.current_steps_data.append({
-                                'order': len(self.current_steps_data) + 1,
-                                'name': name,
-                                'type': step_type,
-                                'target': target,
-                                'description': description or '',
-                                'step_id': step_id
-                            })
-                            added_count += 1
+                    for item_id in selection:
+                        try:
+                            index = int(item_id)
+                            if index < len(steps):
+                                step_data = steps[index]
+                                step_id, name, step_type, target, description = step_data
+                                
+                                self.current_steps_data.append({
+                                    'order': len(self.current_steps_data) + 1,
+                                    'name': name,
+                                    'type': step_type,
+                                    'target': target,
+                                    'description': description or '',
+                                    'step_id': step_id
+                                })
+                                added_count += 1
+                        except (ValueError, IndexError):
+                            continue
                     
                     self._update_steps_display()
                     step_dialog.destroy()
@@ -708,13 +748,84 @@ class ModernScenarioEditForm:
 
     
     def _edit_step_value(self):
-        """Edit step value"""
+        """Edit step value for Text Input steps (excluding login steps)"""
         selection = self.steps_listbox.curselection()
         if not selection:
             self.popup_manager.show_error("Error", "Please select a step to edit", parent=self.dialog)
             return
         
-        self.popup_manager.show_info("Edit Step", "✏️ Edit Step Value\n\nFeature available - opens value editor", parent=self.dialog)
+        index = selection[0]
+        login_step_count = len(self.login_steps_data)
+        
+        # Check if it's a login step
+        if index < login_step_count:
+            self.popup_manager.show_info("Info", "Login step values are managed through the Test User dropdown", parent=self.dialog)
+            return
+        
+        # Get the actual step
+        actual_index = index - login_step_count
+        if actual_index >= len(self.current_steps_data):
+            return
+        
+        step = self.current_steps_data[actual_index]
+        
+        # Check if it's a Text Input step
+        if step['type'] != 'Text Input':
+            self.popup_manager.show_info("Info", "Only Text Input steps can have their values edited", parent=self.dialog)
+            return
+        
+        # Create edit dialog
+        edit_dialog = self.popup_manager.create_dynamic_dialog(
+            parent=self.dialog,
+            title=f"Edit Value: {step['name']}",
+            width=400,
+            height=250
+        )
+        
+        # Header
+        header = tk.Frame(edit_dialog, bg='#3b82f6', height=50)
+        header.pack(fill='x')
+        header.pack_propagate(False)
+        
+        tk.Label(header, text="✏️ Edit Step Value", 
+                font=('Segoe UI', 14, 'bold'), bg='#3b82f6', fg='white').pack(expand=True)
+        
+        # Content
+        content = tk.Frame(edit_dialog, bg='white', padx=20, pady=20)
+        content.pack(fill='both', expand=True)
+        
+        tk.Label(content, text=f"Step: {step['name']}", 
+                font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w', pady=(0, 10))
+        
+        tk.Label(content, text="Value:", 
+                font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w', pady=(0, 5))
+        
+        value_entry = tk.Entry(content, font=('Segoe UI', 11), width=40)
+        value_entry.insert(0, step.get('description', ''))
+        value_entry.pack(fill='x', pady=(0, 20))
+        value_entry.focus()
+        value_entry.select_range(0, tk.END)
+        
+        # Buttons
+        btn_frame = tk.Frame(content, bg='white')
+        btn_frame.pack(fill='x')
+        
+        def save_value():
+            new_value = value_entry.get().strip()
+            step['description'] = new_value
+            self._update_steps_display()
+            edit_dialog.destroy()
+            self.popup_manager.show_success("Success", "Step value updated successfully")
+        
+        tk.Button(btn_frame, text="Save", 
+                 font=('Segoe UI', 10, 'bold'), bg='#10b981', fg='white',
+                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
+                 command=save_value).pack(side='right', padx=(10, 0))
+        
+        tk.Button(btn_frame, text="Cancel", 
+                 font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='white',
+                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
+                 command=edit_dialog.destroy).pack(side='right')
     
     def _remove_selected_step(self):
         """Remove selected step"""
@@ -737,10 +848,75 @@ class ModernScenarioEditForm:
             self._update_steps_display()
     
     def _remove_multiple_steps(self):
-        """Remove multiple steps"""
-        self.popup_manager.show_info("Remove Multiple", 
-            "🗑️ Remove Multiple Steps\n\nFeature available - opens multi-selection dialog",
-            parent=self.dialog)
+        """Remove multiple selected steps"""
+        # Create multi-selection dialog
+        remove_dialog = self.popup_manager.create_dynamic_dialog(
+            parent=self.dialog,
+            title="Remove Multiple Steps",
+            width=600,
+            height=400
+        )
+        
+        # Header
+        header = tk.Frame(remove_dialog, bg='#ef4444', height=50)
+        header.pack(fill='x')
+        header.pack_propagate(False)
+        
+        tk.Label(header, text="🗑️ Remove Multiple Steps", 
+                font=('Segoe UI', 14, 'bold'), bg='#ef4444', fg='white').pack(expand=True)
+        
+        # Content
+        content = tk.Frame(remove_dialog, bg='white', padx=20, pady=20)
+        content.pack(fill='both', expand=True)
+        
+        tk.Label(content, text="Select steps to remove:", 
+                font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w', pady=(0, 10))
+        
+        # Steps listbox with checkboxes simulation
+        steps_frame = tk.Frame(content, bg='white')
+        steps_frame.pack(fill='both', expand=True, pady=(0, 20))
+        
+        steps_listbox = tk.Listbox(steps_frame, font=('Segoe UI', 9), selectmode=tk.MULTIPLE, height=12)
+        steps_scroll = ttk.Scrollbar(steps_frame, orient='vertical', command=steps_listbox.yview)
+        steps_listbox.configure(yscrollcommand=steps_scroll.set)
+        
+        steps_listbox.pack(side='left', fill='both', expand=True)
+        steps_scroll.pack(side='right', fill='y')
+        
+        # Populate with non-login steps only
+        login_count = len(self.login_steps_data)
+        for i, step in enumerate(self.current_steps_data):
+            display_text = f"{i + login_count + 1}. {step['name']} ({step['type']})"
+            steps_listbox.insert(tk.END, display_text)
+        
+        # Buttons
+        btn_frame = tk.Frame(content, bg='white')
+        btn_frame.pack(fill='x')
+        
+        def remove_selected():
+            selection = steps_listbox.curselection()
+            if not selection:
+                self.popup_manager.show_error("Error", "Please select steps to remove", parent=remove_dialog)
+                return
+            
+            # Remove in reverse order to maintain indices
+            for index in reversed(selection):
+                if index < len(self.current_steps_data):
+                    self.current_steps_data.pop(index)
+            
+            self._update_steps_display()
+            remove_dialog.destroy()
+            self.popup_manager.show_success("Success", f"Removed {len(selection)} steps")
+        
+        tk.Button(btn_frame, text="Cancel", 
+                 font=('Segoe UI', 10, 'bold'), bg='#6b7280', fg='white',
+                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
+                 command=remove_dialog.destroy).pack(side='right', padx=(10, 0))
+        
+        tk.Button(btn_frame, text="Remove Selected", 
+                 font=('Segoe UI', 10, 'bold'), bg='#ef4444', fg='white',
+                 relief='flat', padx=15, pady=8, cursor='hand2', bd=0,
+                 command=remove_selected).pack(side='right')
     
     def _move_step_up(self):
         """Move step up"""
